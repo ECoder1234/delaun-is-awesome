@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  .botbar {
+    display: flex; align-items: center; gap: 12px;
+    max-width: 720px; width: 100%; margin: 0 auto;
+    padding: 4px 16px 12px;
+    border-bottom: 3px solid var(--ink);
+  }
+  .botbar .face {
+    width: 44px; height: 44px; border-radius: 12px;
+    border: 3px solid var(--ink); background: var(--gold);
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 1.2rem;
+  }
+  .botbar b { font-size: 1.2rem; display: block; }
+  .botbar small { color: #4a453e; }
+  .botbar .next { position: static; transform: none; margin-left: auto; padding: 8px 14px; font-size: 0.9rem; }
+
+  main { flex: 1; overflow-y: auto; padding: 20px 16px; }
+  .chat { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  .msg { display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 1.05rem;
+  }
+  .msg.bot .bubble { background: #fff; border-bottom-left-radius: 4px; }
+  .msg.user .bubble { background: var(--blue); border-bottom-right-radius: 4px; }
+  .msg.bot .bubble.win { background: var(--gold); font-weight: 700; }
+  .typing span {
+    display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%;
+    background: var(--ink); animation: blink 0.9s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+  footer { padding: 12px 16px 18px; }
+  form { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
+  input {
+    flex: 1; min-width: 0;
+    font: inherit; font-size: 1.05rem;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 3px solid var(--ink);
+    background: #fff; color: var(--ink);
+    outline: none;
+  }
+  input:focus { border-color: var(--blue); }
+  form button {
+    font: inherit; font-weight: 700;
+    padding: 0 18px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: var(--gold); color: var(--ink);
+    cursor: pointer;
+  }
+  form button:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 7</span></div>
+  <div class="botbar">
+    <div class="face">:)</div>
+    <div><b>awesomebot</b><small>knows everything. mostly about delaun.</small></div>
+    <!-- When level 8 exists: remove "disabled" and add onclick="location.href='level8.html'" -->
+    <button class="next" id="next" disabled>level 8 soon</button>
+  </div>
+
+  <main id="scroller"><div class="chat" id="chat"></div></main>
+
+  <footer>
+    <form id="form">
+      <input id="input" placeholder="type here" autocomplete="off" aria-label="Message">
+      <button id="send" type="submit">send</button>
+    </form>
+  </footer>
+
+<script>
+  const chat = document.getElementById('chat');
+  const scroller = document.getElementById('scroller');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+
+  let wrong = 0, won = false, busy = false;
+
+  const WRONG = [
+    "nope",
+    "no. try again",
+    "that's not even close bro",
+    "i'm gonna pretend you didn't say that",
+    "wrong. who is the MOST awesome",
+    "be serious",
+    "my creator would be disappointed",
+  ];
+  const AFTER_WIN = ["delaun", "still delaun", "the answer is always delaun", "delaun. next question"];
+
+  function addMsg(who, text, cls = '') {
+    const row = document.createElement('div');
+    row.className = 'msg ' + who;
+    const b = document.createElement('div');
+    b.className = 'bubble ' + cls;
+    b.textContent = text;
+    row.appendChild(b);
+    chat.appendChild(row);
+    scroller.scrollTop = scroller.scrollHeight;
+  }
+
+  function botSay(text, cls = '') {
+    return new Promise(resolve => {
+      const row = document.createElement('div');
+      row.className = 'msg bot';
+      row.innerHTML = '<div class="bubble typing"><span></span><span></span><span></span></div>';
+      chat.appendChild(row);
+      scroller.scrollTop = scroller.scrollHeight;
+      setTimeout(() => { row.remove(); addMsg('bot', text, cls); resolve(); }, 600 + Math.random() * 600);
+    });
+  }
+
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+
+  async function reply(text) {
+    const t = text.toLowerCase();
+    if (won) { await botSay(pick(AFTER_WIN)); return; }
+    if (t.includes('delaun')) {
+      won = true;
+      await botSay("correct.");
+      await botSay("you passed level 7. that's all the levels for now", 'win');
+      return;
+    }
+    if (t.includes('?')) { await botSay("i'm asking the questions here.\n\nwho is the most awesome person alive"); return; }
+    wrong++;
+    let msg = WRONG[(wrong - 1) % WRONG.length];
+    if (wrong === 3) msg += "\n\n(hint: starts with a D)";
+    if (wrong >= 5) msg += "\n\n(hint: D _ L A U N)";
+    await botSay(msg);
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || busy) return;
+    addMsg('user', text);
+    input.value = '';
+    busy = true; sendBtn.disabled = true;
+    await reply(text);
+    busy = false; sendBtn.disabled = false;
+    input.focus();
+  });
+
+  (async () => {
+    busy = true; sendBtn.disabled = true;
+    await botSay("hi i'm awesomebot");
+    await botSay("quick question before anything else. who is the most awesome person alive");
+    busy = false; sendBtn.disabled = false;
+    input.focus();
+  })();
+</script>
+</body>
+</html>
