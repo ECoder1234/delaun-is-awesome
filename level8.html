@@ -1,0 +1,417 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { max-width: 680px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; font-size: clamp(1.8rem, 5vw, 2.6rem); }
+  .sub { margin-bottom: 12px; }
+  .hud { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 8px; }
+  .lives { display: flex; gap: 6px; }
+  .life { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--ink); background: var(--gold); }
+  .life.gone { background: transparent; border-color: var(--muted); }
+
+  .game { position: relative; border: 4px solid var(--ink); border-radius: 18px; overflow: hidden; background: var(--paper); }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; }
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(244, 239, 230, 0.9);
+    padding: 16px;
+  }
+  .overlay b { font-size: clamp(1.6rem, 6vw, 2.8rem); font-weight: 800; }
+  .overlay span { margin-top: 6px; color: #4a453e; font-size: 1.05rem; }
+  .overlay button {
+    margin-top: 14px; font: inherit; font-weight: 700; font-size: 1rem;
+    padding: 10px 22px; border: 3px solid var(--ink); border-radius: 12px; background: var(--gold); cursor: pointer;
+  }
+  .hidden { display: none; }
+
+  .controls-hint { margin: 12px 0; color: #4a453e; }
+  .controls-hint kbd {
+    font: inherit; font-weight: 700; font-size: 0.85rem;
+    border: 2px solid var(--ink); border-bottom-width: 4px; border-radius: 6px; padding: 1px 7px; background: #fff;
+  }
+  .dpad { display: none; grid-template-columns: repeat(3, 62px); grid-template-rows: repeat(3, 62px); gap: 5px; justify-content: center; margin: 14px auto; }
+  .dpad button {
+    font: inherit; font-weight: 800; font-size: 1.2rem;
+    border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  @media (pointer: coarse) { .dpad { display: grid; } .controls-hint { display: none; } }
+
+  .wrap .next { position: static; transform: none; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 8</span></div>
+
+  <div class="wrap">
+    <h1>crown run</h1>
+    <p class="sub">grab every crown. the haters don't want delaun to have them.</p>
+
+    <div class="hud">
+      <span id="left">crowns left: 0</span>
+      <div class="lives" id="lives"><div class="life"></div><div class="life"></div><div class="life"></div></div>
+    </div>
+
+    <div class="game">
+      <canvas id="game"></canvas>
+      <div class="overlay" id="overlay">
+        <b id="ovTitle">ready?</b>
+        <span id="ovText">press an arrow key or swipe to start. big crowns scare the haters.</span>
+        <button id="ovBtn" class="hidden">try again</button>
+      </div>
+    </div>
+
+    <p class="controls-hint">move <kbd>WASD</kbd> or <kbd>arrows</kbd></p>
+    <div class="dpad">
+      <span></span><button data-dir="up" aria-label="Up">↑</button><span></span>
+      <button data-dir="left" aria-label="Left">←</button><span></span><button data-dir="right" aria-label="Right">→</button>
+      <span></span><button data-dir="down" aria-label="Down">↓</button><span></span>
+    </div>
+
+    <button class="next" id="next" disabled onclick="location.href='level9.html'">next level</button>
+  </div>
+
+<script>
+  // # wall, . crown, o big crown, - pen door (haters only), H hater start, P player start
+  const MAP = [
+    "###################",
+    "#o.......#.......o#",
+    "#.##.###.#.###.##.#",
+    "#.................#",
+    "#.##.#.#####.#.##.#",
+    "#....#...#...#....#",
+    "####.###.#.###.####",
+    "####.#.......#.####",
+    "####.#.##-##.#.####",
+    "#......#HHH#......#",
+    "#.##.#.#####.#.##.#",
+    "#o.#.#...P...#.#.o#",
+    "##.#.###.#.###.#.##",
+    "#.................#",
+    "###################",
+  ];
+  const ROWS = MAP.length, COLS = MAP[0].length, T = 32;
+  const W = COLS * T, H = ROWS * T;
+  const PLAYER_SPEED = 5.2, HATER_SPEED = 4.0, SCARED_SPEED = 2.6, POWER_TIME = 7;
+  const DOOR = { x: 9, y: 7 };   // tile just outside the pen door
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const leftEl = document.getElementById('left');
+  const livesEl = document.getElementById('lives');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovText = document.getElementById('ovText');
+  const ovBtn = document.getElementById('ovBtn');
+  const next = document.getElementById('next');
+
+  const IMG = {};
+  ['player', 'hater'].forEach(n => { const i = new Image(); i.src = `assets/${n}.png`; IMG[n] = i; });
+  const ready = img => img.complete && img.naturalWidth > 0;
+
+  const wall = (x, y) => { const c = (MAP[y] || '')[x]; return c === undefined || c === '#'; };
+  const isDoor = (x, y) => MAP[y][x] === '-';
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
+  let dots, player, haters, lives, power, state, wantDir, started, lastT, pauseUntil;
+
+  function findAll(ch) {
+    const out = [];
+    MAP.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push({ x, y }); }));
+    return out;
+  }
+
+  function resetDots() {
+    dots = new Map();
+    MAP.forEach((row, y) => [...row].forEach((c, x) => { if (c === '.' || c === 'o') dots.set(x + ',' + y, c === 'o' ? 'big' : 'small'); }));
+  }
+
+  function resetActors() {
+    const p = findAll('P')[0];
+    player = { tx: p.x, ty: p.y, dx: 0, dy: 0, p: 0, flip: false };
+    haters = findAll('H').map((h, i) => ({
+      tx: h.x, ty: h.y, dx: 0, dy: 0, p: 0,
+      home: { x: h.x, y: h.y },
+      out: false, releaseAt: performance.now() / 1000 + 1.5 + i * 3.5,
+      style: i,   // 0 chases you, 1 cuts you off, 2 wanders a lot
+    }));
+    wantDir = null;
+    power = 0;
+  }
+
+  function newGame() {
+    resetDots();
+    resetActors();
+    lives = 3;
+    state = 'ready';
+    started = false;
+    renderHud();
+  }
+
+  function renderHud() {
+    leftEl.textContent = 'crowns left: ' + dots.size;
+    [...livesEl.children].forEach((l, i) => l.classList.toggle('gone', i >= lives));
+  }
+
+  function showOverlay(title, text, button) {
+    ovTitle.textContent = title; ovText.textContent = text;
+    ovBtn.classList.toggle('hidden', !button);
+    if (button) ovBtn.textContent = button;
+    overlay.classList.remove('hidden');
+  }
+
+  // ---------- movement on the grid ----------
+  // An actor sits at the centre of tile (tx,ty) when p = 0, and moves towards (tx+dx, ty+dy) as p goes to 1.
+  const pos = a => ({ x: a.tx + a.dx * a.p, y: a.ty + a.dy * a.p });
+
+  function canGo(a, dx, dy, isHater) {
+    const nx = a.tx + dx, ny = a.ty + dy;
+    if (wall(nx, ny)) return false;
+    if (isDoor(nx, ny) && !isHater) return false;
+    return true;
+  }
+
+  function step(a, dist, decide) {
+    let guard = 0;
+    while (dist > 0 && guard++ < 8) {
+      if (a.p === 0) {
+        decide(a);
+        if (!a.dx && !a.dy) return;
+      }
+      const room = 1 - a.p;
+      if (dist < room) { a.p += dist; return; }
+      dist -= room;
+      a.tx += a.dx; a.ty += a.dy; a.p = 0;
+      if (a === player) eatAt(a.tx, a.ty);
+    }
+  }
+
+  function decidePlayer(a) {
+    if (wantDir) {
+      const [dx, dy] = DIRS[wantDir];
+      if (canGo(a, dx, dy, false)) { a.dx = dx; a.dy = dy; if (dx) a.flip = dx < 0; return; }
+    }
+    if (!canGo(a, a.dx, a.dy, false)) { a.dx = 0; a.dy = 0; }
+  }
+
+  function decideHater(h) {
+    const opts = Object.values(DIRS).filter(([dx, dy]) => canGo(h, dx, dy, true) && !(dx === -h.dx && dy === -h.dy && (h.dx || h.dy)));
+    const all = opts.length ? opts : Object.values(DIRS).filter(([dx, dy]) => canGo(h, dx, dy, true));
+    // don't walk back into the pen once out
+    const choices = all.filter(([dx, dy]) => !isDoor(h.tx + dx, h.ty + dy)) .length ? all.filter(([dx, dy]) => !isDoor(h.tx + dx, h.ty + dy)) : all;
+    if (!choices.length) { h.dx = h.dy = 0; return; }
+    const pp = pos(player);
+    let target = { x: pp.x, y: pp.y };
+    if (h.style === 1) target = { x: pp.x + player.dx * 4, y: pp.y + player.dy * 4 };
+    const scared = power > 0;
+    const randomChance = scared ? 0.25 : h.style === 2 ? 0.55 : 0.25;
+    let pick;
+    if (Math.random() < randomChance) pick = choices[Math.floor(Math.random() * choices.length)];
+    else {
+      const score = ([dx, dy]) => Math.hypot(h.tx + dx - target.x, h.ty + dy - target.y);
+      pick = choices.reduce((best, c) => (scared ? score(c) > score(best) : score(c) < score(best)) ? c : best);
+    }
+    h.dx = pick[0]; h.dy = pick[1];
+  }
+
+  function eatAt(x, y) {
+    const k = x + ',' + y;
+    if (!dots.has(k)) return;
+    if (dots.get(k) === 'big') power = POWER_TIME;
+    dots.delete(k);
+    renderHud();
+    if (dots.size === 0) win();
+  }
+
+  function sendHome(h) {
+    h.tx = h.home.x; h.ty = h.home.y; h.dx = h.dy = 0; h.p = 0;
+    h.out = false; h.releaseAt = performance.now() / 1000 + 3;
+  }
+
+  function win() {
+    state = 'won';
+    showOverlay('every crown collected', 'delaun is pleased. next level unlocked');
+    next.disabled = false;
+    next.focus();
+  }
+
+  function caught() {
+    lives--;
+    renderHud();
+    if (lives <= 0) {
+      state = 'over';
+      showOverlay('the haters got you', 'all the crowns are back. again?', 'try again');
+      return;
+    }
+    resetActors();
+    state = 'ready';
+    started = false;
+    showOverlay('ouch', lives + (lives === 1 ? ' life' : ' lives') + ' left. press an arrow to keep going');
+  }
+
+  // ---------- loop ----------
+  function update(dt) {
+    if (state !== 'play') return;
+    const now = performance.now() / 1000;
+    if (power > 0) power = Math.max(0, power - dt);
+
+    step(player, PLAYER_SPEED * dt, decidePlayer);
+    if (state !== 'play') return;
+
+    for (const h of haters) {
+      if (!h.out) {
+        if (now >= h.releaseAt) { h.out = true; h.tx = DOOR.x; h.ty = DOOR.y; h.dx = h.dy = 0; h.p = 0; }
+        continue;
+      }
+      step(h, (power > 0 ? SCARED_SPEED : HATER_SPEED) * dt, decideHater);
+      const a = pos(player), b = pos(h);
+      if (Math.hypot(a.x - b.x, a.y - b.y) < 0.65) {
+        if (power > 0) sendHome(h);
+        else { caught(); return; }
+      }
+    }
+  }
+
+  // ---------- drawing ----------
+  let mazeLayer;
+  function buildMaze() {
+    mazeLayer = document.createElement('canvas');
+    mazeLayer.width = W * dpr; mazeLayer.height = H * dpr;
+    const g = mazeLayer.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#f4efe6'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#e6dfd2';
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (wall(x, y)) g.fillRect(x * T, y * T, T, T);
+    // ink outline on every wall edge that touches open floor
+    g.strokeStyle = '#1b1b1b'; g.lineWidth = 3.5; g.lineCap = 'round';
+    g.beginPath();
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      if (!wall(x, y)) continue;
+      const px = x * T, py = y * T;
+      const open = (ax, ay) => ay >= 0 && ay < ROWS && ax >= 0 && ax < COLS && !wall(ax, ay);
+      if (open(x, y - 1)) { g.moveTo(px, py); g.lineTo(px + T, py); }
+      if (open(x, y + 1)) { g.moveTo(px, py + T); g.lineTo(px + T, py + T); }
+      if (open(x - 1, y)) { g.moveTo(px, py); g.lineTo(px, py + T); }
+      if (open(x + 1, y)) { g.moveTo(px + T, py); g.lineTo(px + T, py + T); }
+    }
+    g.stroke();
+    // pen door
+    findAll('-').forEach(d => {
+      g.strokeStyle = '#ff5a36'; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(d.x * T + 3, d.y * T + T / 2); g.lineTo(d.x * T + T - 3, d.y * T + T / 2); g.stroke();
+    });
+  }
+
+  function crownPath(c, cx, cy, s) {
+    c.beginPath();
+    c.moveTo(cx - s, cy + s * 0.6); c.lineTo(cx - s * 1.1, cy - s * 0.5); c.lineTo(cx - s * 0.45, cy);
+    c.lineTo(cx, cy - s * 0.8); c.lineTo(cx + s * 0.45, cy); c.lineTo(cx + s * 1.1, cy - s * 0.5);
+    c.lineTo(cx + s, cy + s * 0.6); c.closePath();
+  }
+
+  function drawSprite(img, cx, cy, h, flip, alpha = 1) {
+    const w = img.naturalWidth * h / img.naturalHeight;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, cy); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+
+  function drawHaterFallback(cx, cy, alpha) {
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#8f7fa8'; ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 8, cy - 6); ctx.lineTo(cx - 2, cy - 3); ctx.moveTo(cx + 8, cy - 6); ctx.lineTo(cx + 2, cy - 3); ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw(now) {
+    ctx.drawImage(mazeLayer, 0, 0, W, H);
+
+    // crowns
+    for (const [k, kind] of dots) {
+      const [x, y] = k.split(',').map(Number);
+      const cx = x * T + T / 2, cy = y * T + T / 2;
+      ctx.fillStyle = '#f5b700'; ctx.strokeStyle = '#1b1b1b';
+      if (kind === 'big') {
+        const s = 9 + Math.sin(now / 180) * 1.5;
+        ctx.lineWidth = 3; ctx.lineJoin = 'round';
+        crownPath(ctx, cx, cy, s); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    }
+
+    // haters
+    const scared = power > 0;
+    const blink = scared && power < 2 && Math.floor(now / 150) % 2 === 0;
+    haters.forEach((h, i) => {
+      const p = pos(h);
+      const cx = p.x * T + T / 2, cy = p.y * T + T / 2 + Math.sin(now / 200 + i) * 1.5;
+      const alpha = scared ? (blink ? 0.85 : 0.45) : 1;
+      if (ready(IMG.hater)) drawSprite(IMG.hater, cx, cy, 34, h.dx < 0, alpha);
+      else drawHaterFallback(cx, cy, alpha);
+      if (scared && h.out) {
+        ctx.font = '700 12px Rubik, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#1b1b1b';
+        ctx.fillText('eek', cx, cy - 19);
+      }
+    });
+
+    // player
+    const pp = pos(player);
+    const pcx = pp.x * T + T / 2, pcy = pp.y * T + T / 2;
+    if (ready(IMG.player)) drawSprite(IMG.player, pcx, pcy - 2, 38, player.flip);
+    else { ctx.fillStyle = '#4da3ff'; ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(pcx, pcy, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+
+    // power timer bar
+    if (scared) {
+      ctx.fillStyle = '#1b1b1b'; ctx.fillRect(T, 6, (W - 2 * T), 8);
+      ctx.fillStyle = '#f5b700'; ctx.fillRect(T + 2, 8, (W - 2 * T - 4) * power / POWER_TIME, 4);
+    }
+  }
+
+  function frame(t) {
+    const dt = Math.min(0.05, (t - (lastT || t)) / 1000);
+    lastT = t;
+    update(dt);
+    draw(t);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- input ----------
+  function press(dir) {
+    wantDir = dir;
+    if (state === 'ready') { state = 'play'; overlay.classList.add('hidden'); if (!started) { started = true; const now = performance.now() / 1000; haters.forEach((h, i) => h.releaseAt = now + 1.5 + i * 3.5); } }
+  }
+  const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  window.addEventListener('keydown', e => { if (KEYS[e.code]) { e.preventDefault(); press(KEYS[e.code]); } });
+  document.querySelectorAll('.dpad button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); press(b.dataset.dir); }));
+  let touchStart = null;
+  canvas.addEventListener('pointerdown', e => { touchStart = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', e => {
+    if (!touchStart) return;
+    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+    press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+  ovBtn.addEventListener('click', () => { newGame(); showOverlay('ready?', 'press an arrow key or swipe to start'); });
+
+  newGame();
+  buildMaze();
+  (document.fonts ? document.fonts.load('700 12px Rubik').catch(() => {}) : Promise.resolve()).then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>

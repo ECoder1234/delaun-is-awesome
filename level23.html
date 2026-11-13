@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 23</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { max-width: 600px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; }
+
+  .streak { display: flex; justify-content: center; gap: 8px; margin: 14px 0; }
+  .pip { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--ink); background: #fff; transition: background 0.2s; }
+  .pip.on { background: var(--gold); }
+
+  .board {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .item { position: absolute; width: 12%; aspect-ratio: 1; }
+  .item svg { width: 100%; height: 100%; display: block; }
+  .center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; font-size: clamp(1.4rem, 5vw, 2.2rem);
+    padding: 16px;
+  }
+  .center small { font-weight: 400; font-size: 1rem; color: #4a453e; margin-top: 6px; }
+  .reveal-tag {
+    position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper);
+    padding: 4px 14px; border-radius: 999px; font-weight: 700;
+    z-index: 2;
+  }
+
+  .answer { display: flex; gap: 8px; justify-content: center; margin: 16px 0 6px; }
+  .answer input {
+    width: 110px;
+    font: inherit; font-weight: 800; font-size: 1.4rem; text-align: center;
+    padding: 8px 10px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  .answer input:focus { border-color: var(--blue); }
+  .btn {
+    font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 8px 20px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .btn.primary { background: var(--gold); }
+  .btn:disabled, .answer input:disabled { opacity: 0.4; cursor: not-allowed; }
+  .msg { min-height: 28px; font-weight: 700; font-size: 1.1rem; margin: 8px 0; }
+
+  .wrap .next { position: static; transform: none; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 23</span></div>
+
+  <div class="wrap">
+    <h1>count the crowns</h1>
+    <p class="sub">crowns show up for 2 seconds. how many? get 3 right in a row. stars don't count.</p>
+
+    <div class="streak" id="streak"><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+
+    <div class="board" id="board">
+      <div class="center" id="center">ready?<small>eyes on the board</small></div>
+    </div>
+
+    <form class="answer" id="form" autocomplete="off">
+      <input id="guess" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="?" aria-label="How many crowns" disabled>
+      <button class="btn primary" id="check" type="submit" disabled>check</button>
+    </form>
+    <div class="msg" id="msg"></div>
+    <button class="btn" id="go">show me</button>
+    <br>
+    <button class="next" id="next" disabled onclick="location.href='level24.html'">next level</button>
+  </div>
+
+<script>
+  const COLS = 6, ROWS = 4;   // jittered grid so nothing overlaps
+  const CROWN = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M14 72 L8 30 L32 50 L50 18 L68 50 L92 30 L86 72 Z" fill="#f5b700" stroke="#1b1b1b" stroke-width="7" stroke-linejoin="round"/>
+    <rect x="14" y="70" width="72" height="14" rx="3" fill="#f5b700" stroke="#1b1b1b" stroke-width="7"/>
+    <circle cx="50" cy="56" r="6" fill="#ff5a36" stroke="#1b1b1b" stroke-width="4"/></svg>`;
+  const STAR = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M50 8 L61 38 L93 39 L68 59 L77 91 L50 73 L23 91 L32 59 L7 39 L39 38 Z" fill="#f5b700" stroke="#1b1b1b" stroke-width="7" stroke-linejoin="round"/></svg>`;
+
+  const board = document.getElementById('board');
+  const center = document.getElementById('center');
+  const guess = document.getElementById('guess');
+  const checkBtn = document.getElementById('check');
+  const goBtn = document.getElementById('go');
+  const msgEl = document.getElementById('msg');
+  const pips = document.querySelectorAll('.pip');
+  const next = document.getElementById('next');
+
+  let streak = 0, count = 0, layout = [], won = false;
+
+  const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+  function makeRound() {
+    // gets a bit harder as your streak goes up (always 7-20 crowns)
+    const ranges = [[7, 10], [9, 13], [11, 15]];
+    const [lo, hi] = ranges[Math.min(streak, 2)];
+    count = rand(lo, hi);
+    const decoys = rand(2, 4);
+    const cells = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
+    cells.sort(() => Math.random() - 0.5);
+    layout = cells.slice(0, count + decoys).map(([c, r], i) => ({
+      kind: i < count ? 'crown' : 'star',
+      left: (c + 0.12 + Math.random() * 0.24) / COLS * 100,
+      top: (r + 0.08 + Math.random() * 0.2) / ROWS * 100,
+      rot: rand(-25, 25),
+    }));
+  }
+
+  function renderItems(tag) {
+    board.innerHTML = '';
+    if (tag) {
+      const t = document.createElement('div');
+      t.className = 'reveal-tag';
+      t.textContent = tag;
+      board.appendChild(t);
+    }
+    for (const it of layout) {
+      const d = document.createElement('div');
+      d.className = 'item';
+      d.style.left = it.left + '%';
+      d.style.top = it.top + '%';
+      d.style.transform = `rotate(${it.rot}deg)`;
+      d.innerHTML = it.kind === 'crown' ? CROWN : STAR;
+      board.appendChild(d);
+    }
+  }
+
+  function showCenter(html) {
+    board.innerHTML = '';
+    const c = document.createElement('div');
+    c.className = 'center';
+    c.innerHTML = html;
+    board.appendChild(c);
+  }
+
+  function play() {
+    if (won) return;
+    makeRound();
+    msgEl.textContent = '';
+    goBtn.style.display = 'none';
+    guess.value = '';
+    guess.disabled = true; checkBtn.disabled = true;
+    renderItems();
+    const ms = 2000 + Math.max(0, count - 10) * 150;
+    setTimeout(() => {
+      showCenter('how many crowns?<small>type your answer</small>');
+      guess.disabled = false; checkBtn.disabled = false;
+      guess.focus();
+    }, ms);
+  }
+
+  function check(e) {
+    e.preventDefault();
+    if (guess.disabled || won) return;
+    const n = parseInt(guess.value, 10);
+    if (Number.isNaN(n)) { msgEl.textContent = 'type a number'; return; }
+    guess.disabled = true; checkBtn.disabled = true;
+    if (n === count) {
+      streak++;
+      pips.forEach((p, i) => p.classList.toggle('on', i < streak));
+      if (streak >= 3) {
+        won = true;
+        showCenter('3 in a row<small>eyes of a hawk. delaun would be proud</small>');
+        msgEl.textContent = '';
+        next.disabled = false;
+        next.focus();
+        return;
+      }
+      showCenter(`yep, ${count}<small>${3 - streak} more</small>`);
+      msgEl.textContent = '';
+      goBtn.textContent = 'next one';
+    } else {
+      streak = 0;
+      pips.forEach(p => p.classList.remove('on'));
+      renderItems();
+      msgEl.textContent = `nope, it was ${count}. streak reset`;
+      goBtn.textContent = 'again';
+    }
+    goBtn.style.display = 'inline-block';
+  }
+
+  document.getElementById('form').addEventListener('submit', check);
+  goBtn.addEventListener('click', play);
+</script>
+</body>
+</html>

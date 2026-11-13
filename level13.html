@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 13</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { max-width: 600px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  .hits { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+  .hit {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid var(--ink); background: #fff;
+    transition: background 0.2s;
+  }
+  .hit.on { background: var(--gold); }
+
+  .box {
+    width: 100%;
+    height: min(46vh, 320px);
+    min-height: 200px;
+    border: 3px solid var(--ink); border-radius: 18px;
+    background: #fff; color: var(--ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    padding: 12px;
+  }
+  .box b { font-weight: 800; font-size: clamp(2rem, 9vw, 3.4rem); line-height: 1.05; }
+  .box span { margin-top: 8px; font-size: 1.05rem; }
+  .box.wait { background: var(--ink); color: var(--paper); }
+  .box.go { background: var(--gold); }
+  .box.early { background: #ffd9d1; }
+  .box:focus-visible { outline: 3px dashed var(--blue); outline-offset: 4px; }
+
+  .log { min-height: 1.4em; margin-top: 14px; color: #4a453e; }
+  .log i { font-style: normal; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin: 0 2px; }
+  .log i.good { background: var(--gold); color: var(--ink); }
+  .log i.slow { background: var(--soft); }
+  .wrap .next { position: static; transform: none; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 13</span></div>
+
+  <div class="wrap">
+    <h1>reaction</h1>
+    <p class="sub">wait for gold, then tap. get under 450ms 3 times. delaun's record is 0ms (allegedly)</p>
+
+    <div class="hits" id="hits"><div class="hit"></div><div class="hit"></div><div class="hit"></div></div>
+
+    <div class="box" id="box" tabindex="0" role="button" aria-live="polite"><b>tap to start</b><span>or press space</span></div>
+    <div class="log" id="log"></div>
+
+    <button class="next" id="next" disabled onclick="location.href='level14.html'">next level</button>
+  </div>
+
+<script>
+  const GOAL = 3, LIMIT = 450;
+  const box = document.getElementById('box');
+  const hitsEl = document.getElementById('hits');
+  const logEl = document.getElementById('log');
+  const next = document.getElementById('next');
+
+  let state = 'idle';   // idle | wait | go | result | early | done
+  let timer = 0, goAt = 0, good = 0;
+  const times = [];
+
+  function show(cls, big, small) {
+    box.className = 'box' + (cls ? ' ' + cls : '');
+    box.innerHTML = `<b>${big}</b>` + (small ? `<span>${small}</span>` : '');
+  }
+
+  function startRound() {
+    state = 'wait';
+    show('wait', 'wait for it...', 'don\'t tap yet');
+    timer = setTimeout(() => {
+      state = 'go';
+      goAt = performance.now();
+      show('go', 'NOW', '');
+    }, 1200 + Math.random() * 2300);
+  }
+
+  function renderLog() {
+    logEl.innerHTML = times.length
+      ? 'your times: ' + times.map(t => `<i class="${t < LIMIT ? 'good' : 'slow'}">${t}ms</i>`).join('')
+      : '';
+  }
+
+  function tap() {
+    if (state === 'done') return;
+    if (state === 'idle' || state === 'result' || state === 'early') { startRound(); return; }
+    if (state === 'wait') {
+      clearTimeout(timer);
+      state = 'early';
+      show('early', 'too early', 'tap to try again');
+      return;
+    }
+    if (state === 'go') {
+      const ms = Math.round(performance.now() - goAt);
+      times.push(ms);
+      renderLog();
+      if (ms < LIMIT) {
+        good++;
+        hitsEl.children[good - 1].classList.add('on');
+      }
+      if (good >= GOAL) {
+        state = 'done';
+        show('go', ms + 'ms', 'that\'s 3. delaun is impressed');
+        next.disabled = false;
+        next.focus();
+        return;
+      }
+      state = 'result';
+      show('', ms + 'ms', ms < LIMIT ? `nice. ${GOAL - good} more. tap to go again` : 'too slow. tap to go again');
+    }
+  }
+
+  box.addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+  window.addEventListener('keydown', e => {
+    if ((e.code !== 'Space' && e.code !== 'Enter') || e.repeat) return;
+    if (document.activeElement === next && !next.disabled) return;
+    e.preventDefault();
+    tap();
+  });
+</script>
+</body>
+</html>

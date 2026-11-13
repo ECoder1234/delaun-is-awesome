@@ -1,6 +1,6 @@
 # delaun is awesome
 
-A tiny puzzle website with 7 levels, all about how awesome Delaun is.
+A tiny puzzle website with 25 levels, all about how awesome Delaun is.
 
 Play it: https://ecoder1234.github.io/delaun-is-awesome/
 

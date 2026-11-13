@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 12</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  .moves { font-weight: 700; margin: 14px 0; font-size: 1.1rem; }
+  .moves b { font-weight: 800; }
+
+  .board {
+    position: relative;
+    width: min(100%, 380px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    background: var(--soft);
+    overflow: hidden;
+  }
+  .tile {
+    position: absolute;
+    width: 33.3334%; height: 33.3334%;
+    padding: 0;
+    border: 2px solid var(--ink);
+    background-color: #fff3d6;
+    background-size: 300% 300%;
+    background-origin: border-box;
+    background-clip: border-box;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    transition: left 0.12s ease-out, top 0.12s ease-out;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tile .num {
+    position: absolute; left: 5px; top: 4px;
+    font: 700 0.8rem 'Rubik', sans-serif;
+    background: var(--ink); color: var(--paper);
+    border-radius: 6px; padding: 0 5px;
+  }
+  .tile.last { opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+  .board.solved .tile { border-color: transparent; cursor: default; }
+  .board.solved .tile.last { opacity: 1; }
+  .board.solved .num { display: none; }
+
+  .peek {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-top: 12px; color: #4a453e; font-size: 0.95rem;
+  }
+  .peek img { width: 64px; height: 64px; border: 2px solid var(--ink); border-radius: 8px; }
+
+  .msg { min-height: 30px; margin: 14px 0 4px; font-weight: 700; font-size: 1.15rem; }
+  .wrap .next { position: static; transform: none; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 12</span></div>
+
+  <div class="wrap">
+    <h1>fix the picture</h1>
+    <p class="sub">someone scrambled delaun. slide the tiles back</p>
+    <div class="moves">moves: <b id="moves">0</b></div>
+
+    <div class="board" id="board"></div>
+    <div class="peek"><img id="peekImg" alt="what it should look like"> what it should look like</div>
+
+    <div class="msg" id="msg"></div>
+    <button class="next" id="next" disabled onclick="location.href='level13.html'">next level</button>
+  </div>
+
+<script>
+  const N = 3;
+  const board = document.getElementById('board');
+  const movesEl = document.getElementById('moves');
+  const msgEl = document.getElementById('msg');
+  const next = document.getElementById('next');
+
+  // order[pos] = piece number (0..7 are tiles, 8 is the gap)
+  let order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  let moves = 0, solved = false;
+  const tiles = [];
+
+  // Draw the picture: flat sunburst + gold circle + the character, so every tile looks different
+  function makePicture(img) {
+    const S = 600, c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff3d6'; g.fillRect(0, 0, S, S);
+    g.fillStyle = '#ffe08a';
+    for (let i = 0; i < 16; i += 2) {
+      const a1 = i / 16 * Math.PI * 2, a2 = (i + 1) / 16 * Math.PI * 2;
+      g.beginPath(); g.moveTo(S / 2, S / 2);
+      g.lineTo(S / 2 + Math.cos(a1) * S, S / 2 + Math.sin(a1) * S);
+      g.lineTo(S / 2 + Math.cos(a2) * S, S / 2 + Math.sin(a2) * S);
+      g.closePath(); g.fill();
+    }
+    g.lineWidth = 8; g.strokeStyle = '#1b1b1b';
+    g.fillStyle = '#f5b700';
+    g.beginPath(); g.arc(S / 2, S / 2, 210, 0, Math.PI * 2); g.fill(); g.stroke();
+    const star = (x, y, r, fill) => {
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+        g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      g.closePath(); g.fillStyle = fill; g.fill(); g.lineWidth = 6; g.stroke();
+    };
+    star(80, 90, 46, '#4da3ff'); star(525, 120, 38, '#ff5a36'); star(70, 520, 36, '#ff5a36'); star(530, 500, 44, '#4da3ff');
+    if (img && img.naturalWidth) {
+      const h = 520, w = img.naturalWidth * h / img.naturalHeight;
+      g.drawImage(img, (S - w) / 2, S - h - 30, w, h);
+    } else {
+      g.fillStyle = '#1b1b1b'; g.font = '800 90px Rubik, sans-serif'; g.textAlign = 'center';
+      g.fillText('delaun', S / 2, S / 2 + 30);
+    }
+    return c.toDataURL('image/png');
+  }
+
+  function place() {
+    order.forEach((piece, pos) => {
+      const t = tiles[piece];
+      t.style.left = (pos % N) * 33.3333 + '%';
+      t.style.top = Math.floor(pos / N) * 33.3333 + '%';
+    });
+  }
+
+  const gapPos = () => order.indexOf(8);
+  const neighbors = p => {
+    const r = Math.floor(p / N), c = p % N, out = [];
+    if (r > 0) out.push(p - N); if (r < N - 1) out.push(p + N);
+    if (c > 0) out.push(p - 1); if (c < N - 1) out.push(p + 1);
+    return out;
+  };
+  const swap = (a, b) => { [order[a], order[b]] = [order[b], order[a]]; };
+
+  function shuffle() {
+    let prev = -1;
+    do {
+      order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      prev = -1;
+      for (let i = 0; i < 60; i++) {
+        const g = gapPos();
+        const opts = neighbors(g).filter(p => p !== prev);
+        const pick = opts[Math.floor(Math.random() * opts.length)];
+        swap(g, pick);
+        prev = g;
+      }
+    } while (order.every((v, i) => v === i));
+  }
+
+  function clickTile(piece) {
+    if (solved) return;
+    const pos = order.indexOf(piece), g = gapPos();
+    if (!neighbors(g).includes(pos)) return;
+    swap(pos, g);
+    moves++;
+    movesEl.textContent = moves;
+    place();
+    if (order.every((v, i) => v === i)) {
+      solved = true;
+      board.classList.add('solved');
+      msgEl.textContent = `fixed in ${moves} moves. delaun looks great again`;
+      next.disabled = false;
+      next.focus();
+    }
+  }
+
+  function build(url) {
+    document.getElementById('peekImg').src = url;
+    for (let piece = 0; piece < 9; piece++) {
+      const t = document.createElement('button');
+      t.className = 'tile' + (piece === 8 ? ' last' : '');
+      t.style.backgroundImage = `url(${url})`;
+      t.style.backgroundPosition = `${(piece % N) * 50}% ${Math.floor(piece / N) * 50}%`;
+      if (piece < 8) {
+        t.innerHTML = `<span class="num">${piece + 1}</span>`;
+        t.setAttribute('aria-label', 'tile ' + (piece + 1));
+        t.addEventListener('click', () => clickTile(piece));
+      } else {
+        t.tabIndex = -1;
+        t.setAttribute('aria-hidden', 'true');
+      }
+      tiles.push(t);
+      board.appendChild(t);
+    }
+    shuffle();
+    place();
+  }
+
+  const img = new Image();
+  img.onload = () => build(makePicture(img));
+  img.onerror = () => build(makePicture(null));
+  img.src = 'assets/delaun.png';
+</script>
+</body>
+</html>

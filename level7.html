@@ -79,8 +79,7 @@
   <div class="botbar">
     <div class="face">:)</div>
     <div><b>awesomebot</b><small>knows everything. mostly about delaun.</small></div>
-    <!-- When level 8 exists: remove "disabled" and add onclick="location.href='level8.html'" -->
-    <button class="next" id="next" disabled>level 8 soon</button>
+    <button class="next" id="next" disabled onclick="location.href='level8.html'">next level</button>
   </div>
 
   <main id="scroller"><div class="chat" id="chat"></div></main>
@@ -142,7 +141,10 @@
     if (t.includes('delaun')) {
       won = true;
       await botSay("correct.");
-      await botSay("you passed level 7. that's all the levels for now", 'win');
+      await botSay("you passed level 7. next level unlocked (top right)", 'win');
+      const next = document.getElementById('next');
+      next.disabled = false;
+      next.focus();
       return;
     }
     if (t.includes('?')) { await botSay("i'm asking the questions here.\n\nwho is the most awesome person alive"); return; }

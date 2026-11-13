@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px 110px; text-align: center; }
+  .card {
+    margin-top: 22px;
+    padding: 24px 20px;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    background: #fff;
+  }
+  .q { font-weight: 700; font-size: 1.15rem; }
+  .value {
+    font-weight: 800;
+    font-size: clamp(3rem, 14vw, 5rem);
+    line-height: 1.1;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+  }
+  .value.bump { animation: bump 0.4s; }
+  @keyframes bump { 50% { transform: scale(1.15); } }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 14px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    background: var(--soft);
+    outline: none;
+    margin: 6px 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--gold); border: 3px solid var(--ink); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--gold); border: 3px solid var(--ink); cursor: pointer;
+  }
+  .labels { display: flex; justify-content: space-between; font-weight: 700; color: #4a453e; }
+  .labels.bump { animation: bump 0.4s; }
+  .submit {
+    font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 12px 26px; margin-top: 18px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: var(--ink); color: var(--paper); cursor: pointer;
+  }
+  .submit:disabled { opacity: 0.4; cursor: default; }
+  .reply { min-height: 1.6em; margin-top: 16px; font-weight: 700; font-size: 1.15rem; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 18</span></div>
+
+  <main>
+    <h1>rate delaun</h1>
+    <p class="sub">be honest. how awesome is delaun</p>
+
+    <div class="card">
+      <div class="q">delaun's awesomeness:</div>
+      <div class="value" id="value">5</div>
+      <input type="range" id="slider" min="1" max="10" step="1" value="5" aria-label="Rating">
+      <div class="labels" id="labels"><span id="minLabel">1</span><span id="maxLabel">10</span></div>
+      <button class="submit" id="submit">submit rating</button>
+      <div class="reply" id="reply"></div>
+    </div>
+  </main>
+
+  <button class="next" id="next" disabled onclick="location.href='level19.html'">next level</button>
+
+<script>
+  const STAGES = [10, 100, 1000, Infinity];
+  const slider = document.getElementById('slider');
+  const valueEl = document.getElementById('value');
+  const labels = document.getElementById('labels');
+  const maxLabel = document.getElementById('maxLabel');
+  const reply = document.getElementById('reply');
+  const submit = document.getElementById('submit');
+  const next = document.getElementById('next');
+
+  const LOW = ['too low', 'nah. higher', 'delaun deserves more than that', 'try the highest number'];
+
+  let stage = 0, lowCount = 0, done = false;
+
+  // in the last stage the slider runs 0-100 internally; 100 is infinity
+  function shown() {
+    const v = Number(slider.value);
+    if (STAGES[stage] !== Infinity) return { text: v.toLocaleString(), top: v === STAGES[stage] };
+    if (v >= 100) return { text: '∞', top: true };
+    return { text: Math.round(1000 * Math.pow(10, v / 12.5)).toLocaleString(), top: false };
+  }
+
+  function render() { valueEl.textContent = shown().text; }
+
+  function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+  function setStage(s) {
+    stage = s;
+    if (STAGES[s] === Infinity) {
+      slider.min = 0; slider.max = 100; slider.value = 0;
+      document.getElementById('minLabel').textContent = '1,000';
+      maxLabel.textContent = '∞';
+    } else {
+      slider.min = 1; slider.max = STAGES[s]; slider.value = STAGES[s - 1] || 5;
+      maxLabel.textContent = STAGES[s].toLocaleString();
+    }
+    bump(labels);
+    render();
+  }
+
+  slider.addEventListener('input', render);
+
+  submit.addEventListener('click', () => {
+    if (done) return;
+    const { top } = shown();
+    bump(valueEl);
+    if (!top) {
+      reply.textContent = stage === 3 ? 'higher. ALL the way' : LOW[Math.min(lowCount++, LOW.length - 1)];
+      return;
+    }
+    if (stage < 3) {
+      submit.disabled = true;
+      reply.textContent = 'still too low. the scale must be broken';
+      setTimeout(() => {
+        setStage(stage + 1);
+        reply.textContent = stage === 3
+          ? 'ok the scale now goes to infinity. try again'
+          : 'upgraded the scale to 1-' + STAGES[stage].toLocaleString() + '. try again';
+        submit.disabled = false;
+      }, 1100);
+      return;
+    }
+    done = true;
+    submit.disabled = true;
+    slider.disabled = true;
+    reply.textContent = 'finally. correct.';
+    next.disabled = false;
+    next.focus();
+  });
+
+  render();
+</script>
+</body>
+</html>

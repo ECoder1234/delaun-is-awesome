@@ -1,0 +1,341 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is awesome - level 24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; }
+  .sub { margin-bottom: 14px; }
+
+  .arena {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    overflow: hidden;
+    background: #6cc04a url(assets/grass.png) repeat;
+    background-size: 120px 120px;
+  }
+  .bar {
+    position: absolute; top: 3%;
+    width: 44%;
+    display: flex; align-items: center; gap: 8px;
+    background: #fff;
+    border: 3px solid var(--ink); border-radius: 12px;
+    padding: 4px 10px;
+    font-weight: 700; font-size: clamp(0.75rem, 2.2vw, 0.95rem);
+    z-index: 3;
+  }
+  .bar.you { left: 3%; }
+  .bar.boss { right: 3%; }
+  .hp { flex: 1; height: 14px; border: 2px solid var(--ink); border-radius: 999px; background: var(--soft); overflow: hidden; }
+  .hp i { display: block; height: 100%; width: 100%; transition: width 0.35s; }
+  .you .hp i { background: var(--blue); }
+  .boss .hp i { background: #ff5a36; }
+  .bar b { min-width: 3.4em; text-align: right; }
+
+  .sprite { position: absolute; user-select: none; -webkit-user-drag: none; pointer-events: none; transition: transform 0.15s, opacity 0.5s; }
+  .delaun-s { left: 3%; bottom: 30%; height: 36%; }
+  .me { left: 20%; bottom: 5%; height: 46%; }
+  .boss-s { right: 7%; bottom: 5%; height: 60%; transform-origin: bottom center; }
+  .boss-s.hurt { animation: hurt 0.35s; }
+  .me.hurt { animation: hurt 0.35s; }
+  @keyframes hurt { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+  .boss-s.gone { transform: scale(0.2) translateY(40%); opacity: 0; }
+  .delaun-s.cheer { animation: cheer 0.5s; }
+  @keyframes cheer { 30% { transform: translateY(-14%); } 60% { transform: translateY(0); } 80% { transform: translateY(-6%); } }
+  .shield {
+    position: absolute; left: 33%; bottom: 10%;
+    width: 9%; aspect-ratio: 1;
+    border: 4px solid var(--ink); border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+    background: var(--blue);
+    display: none; z-index: 2;
+  }
+  .shield.on { display: block; }
+
+  .bubble {
+    position: absolute; top: 20%;
+    max-width: 45%;
+    background: #fff;
+    border: 3px solid var(--ink); border-radius: 14px;
+    padding: 8px 14px;
+    font-weight: 700; font-size: clamp(0.9rem, 2.8vw, 1.2rem);
+    line-height: 1.25;
+    z-index: 4;
+    opacity: 0; transform: scale(0.9);
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .bubble.show { opacity: 1; transform: scale(1); }
+  .bubble.left { left: 3%; }
+  .bubble.right { right: 3%; }
+  .bubble.big { background: #ff5a36; color: #fff; }
+
+  .dmg {
+    position: absolute; z-index: 5;
+    font-weight: 800; font-size: clamp(1.4rem, 5vw, 2.2rem);
+    -webkit-text-stroke: 1.5px var(--ink);
+    color: #fff;
+    pointer-events: none;
+    animation: rise 0.9s ease-out forwards;
+  }
+  .dmg.heal { color: var(--blue); }
+  @keyframes rise { to { transform: translateY(-50px); opacity: 0; } }
+
+  .over {
+    position: absolute; inset: 0; z-index: 6;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(244, 239, 230, 0.88);
+    font-weight: 800; font-size: clamp(1.6rem, 6vw, 2.6rem);
+    padding: 16px;
+  }
+  .over small { font-weight: 400; font-size: 1rem; color: #4a453e; margin: 6px 0 12px; }
+  .over.show { display: flex; }
+
+  .hype { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 14px 0 10px; font-weight: 700; }
+  .hpip { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--ink); background: #fff; }
+  .hpip.on { background: var(--gold); }
+
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .act {
+    font: inherit; font-weight: 700; font-size: clamp(0.9rem, 3vw, 1.05rem);
+    padding: 12px 6px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink);
+    cursor: pointer;
+  }
+  .act small { display: block; font-weight: 400; font-size: 0.78rem; color: #4a453e; margin-top: 2px; }
+  .act.main { background: var(--gold); }
+  .act:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn {
+    font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 8px 22px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: var(--gold); color: var(--ink); cursor: pointer;
+  }
+
+  @media (max-width: 520px) {
+    .arena { aspect-ratio: 1; }
+    .bar { top: 2%; }
+    .bubble { top: 15%; max-width: 44%; }
+    .delaun-s { height: 30%; bottom: 32%; }
+    .me { height: 40%; }
+    .boss-s { height: 50%; right: 4%; }
+  }
+
+  .log { min-height: 48px; margin: 12px 0 6px; font-weight: 500; color: #2c2924; }
+  .wrap .next { position: static; transform: none; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is awesome</a><span class="lvl">level 24</span></div>
+
+  <div class="wrap">
+    <h1>boss fight</h1>
+    <p class="sub">the biggest hater alive showed up. talk it into leaving.</p>
+
+    <div class="arena" id="arena">
+      <div class="bar you"><span>you</span><div class="hp"><i id="youBar"></i></div><b id="youTxt">40/40</b></div>
+      <div class="bar boss"><span>hater</span><div class="hp"><i id="bossBar"></i></div><b id="bossTxt">70/70</b></div>
+
+      <img class="sprite delaun-s" id="delaunImg" src="assets/delaun.png" alt="delaun">
+      <img class="sprite me" id="meImg" src="assets/player.png" alt="you">
+      <div class="shield" id="shield"></div>
+      <img class="sprite boss-s" id="bossImg" alt="the hater">
+
+      <div class="bubble left" id="leftBubble"></div>
+      <div class="bubble right" id="rightBubble"></div>
+
+      <div class="over" id="over">
+        <span id="overTitle">you got ratioed</span>
+        <small id="overSub">the hater won. it happens</small>
+        <button class="btn" id="retry">try again</button>
+      </div>
+    </div>
+
+    <div class="hype"><span>hype</span><div class="hpip"></div><div class="hpip"></div><div class="hpip"></div></div>
+
+    <div class="actions">
+      <button class="act" data-act="hype">hype up delaun<small>charges hype</small></button>
+      <button class="act main" data-act="compliment">compliment<small>hits harder with hype</small></button>
+      <button class="act" data-act="block">block<small>no damage this turn</small></button>
+    </div>
+
+    <div class="log" id="log">your turn. tip: hype makes compliments way stronger</div>
+
+    <button class="next" id="next" disabled onclick="location.href='level25.html'">next level</button>
+  </div>
+
+<script>
+  const YOU_MAX = 40, BOSS_MAX = 70, BIG_HIT = 18;
+  const FALLBACK = 'data:image/svg+xml,' + encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>" +
+    "<ellipse cx='50' cy='60' rx='38' ry='34' fill='#8f86a8' stroke='#1b1b1b' stroke-width='6'/>" +
+    "<path d='M28 42 L44 50 M72 42 L56 50' stroke='#1b1b1b' stroke-width='6' stroke-linecap='round'/>" +
+    "<circle cx='40' cy='58' r='4.5' fill='#1b1b1b'/><circle cx='60' cy='58' r='4.5' fill='#1b1b1b'/>" +
+    "<path d='M38 78 Q50 70 62 78' fill='none' stroke='#1b1b1b' stroke-width='5' stroke-linecap='round'/></svg>");
+
+  const $ = id => document.getElementById(id);
+  const bossImg = $('bossImg');
+  bossImg.onerror = () => { bossImg.onerror = null; bossImg.src = FALLBACK; };
+  bossImg.src = 'assets/hater.png';
+
+  const HYPE_LINES = ["LET'S GO", 'u got this', 'W energy', 'tell it', 'we are SO back'];
+  const COMPLIMENTS = ['delaun is the goat', 'delaun never misses', 'delaun is just built different', 'delaun is awesome. cope', 'delaun > you'];
+  const INSULTS = ['mid', 'ratio', 'who even is delaun', 'L', 'touch grass', 'cringe', 'nobody asked'];
+  const BLOCKED_LINES = ['...', 'ok that was rude of me', 'wait what'];
+
+  let you, boss, hype, turn, charging, blocking, busy, over;
+  const timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+
+  function reset() {
+    timers.forEach(clearTimeout); timers.length = 0;
+    you = YOU_MAX; boss = BOSS_MAX; hype = 0; turn = 0;
+    charging = false; blocking = false; busy = false; over = false;
+    bossImg.classList.remove('gone');
+    $('shield').classList.remove('on');
+    $('over').classList.remove('show');
+    hideBubble('left'); hideBubble('right');
+    $('log').textContent = 'your turn. tip: hype makes compliments way stronger';
+    render();
+  }
+
+  function render() {
+    $('youBar').style.width = (you / YOU_MAX * 100) + '%';
+    $('bossBar').style.width = (boss / BOSS_MAX * 100) + '%';
+    $('youTxt').textContent = `${you}/${YOU_MAX}`;
+    $('bossTxt').textContent = `${boss}/${BOSS_MAX}`;
+    document.querySelectorAll('.hpip').forEach((p, i) => p.classList.toggle('on', i < hype));
+    document.querySelectorAll('.act').forEach(b => b.disabled = busy || over);
+  }
+
+  // left bubble: above delaun (who = 'delaun') or above you (who = 'you'); never shown at the same time as the right one
+  function say(side, text, big = false, who = 'delaun') {
+    const b = $(side + 'Bubble');
+    if (side === 'left') {
+      const narrow = matchMedia('(max-width: 520px)').matches;
+      b.style.left = who === 'you' && !narrow ? '15%' : '3%';
+      b.style.top = narrow ? '15%' : (who === 'you' ? '34%' : '20%');
+    }
+    b.textContent = text;
+    b.classList.toggle('big', big);
+    b.classList.add('show');
+  }
+  function hideBubble(side) { $(side + 'Bubble').classList.remove('show'); }
+
+  function popDamage(target, amount, heal = false) {
+    const arena = $('arena');
+    const el = target === 'boss' ? bossImg : $('meImg');
+    const a = arena.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const d = document.createElement('div');
+    d.className = 'dmg' + (heal ? ' heal' : '');
+    d.textContent = heal ? amount : '-' + amount;
+    d.style.left = (r.left - a.left + r.width / 2 - 20) + 'px';
+    d.style.top = (r.top - a.top + r.height * 0.3) + 'px';
+    arena.appendChild(d);
+    setTimeout(() => d.remove(), 900);
+    if (!heal) { el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt'); }
+  }
+
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+  const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+  function act(kind) {
+    if (busy || over) return;
+    busy = true;
+    hideBubble('right');
+    if (kind === 'hype') {
+      const was = hype;
+      hype = Math.min(3, hype + 1);
+      say('left', pick(HYPE_LINES));
+      const d = $('delaunImg'); d.classList.remove('cheer'); void d.offsetWidth; d.classList.add('cheer');
+      $('log').textContent = was === 3 ? 'hype is already maxed. go compliment' : `delaun hyped you up. hype x${hype}`;
+    } else if (kind === 'compliment') {
+      const dmg = 10 + hype * 8 + rand(0, 3);
+      say('left', pick(COMPLIMENTS), false, 'you');
+      boss = Math.max(0, boss - dmg);
+      popDamage('boss', dmg);
+      $('log').textContent = hype ? `hype x${hype} compliment. ${dmg} damage` : `you complimented delaun. ${dmg} damage`;
+      hype = 0;
+    } else {
+      blocking = true;
+      $('shield').classList.add('on');
+      say('left', 'not today', false, 'you');
+      $('log').textContent = 'you put your guard up';
+    }
+    turn++;
+    render();
+    if (boss <= 0) return later(win, 600);
+    later(bossTurn, 1000);
+  }
+
+  function bossTurn() {
+    hideBubble('left');
+    let dmg = 0, line;
+    if (charging) {
+      charging = false;
+      line = 'ratio + L + mid + who even is delaun';
+      dmg = BIG_HIT;
+      say('right', line, true);
+      if (blocking) {
+        const recoil = 6;
+        boss = Math.max(0, boss - recoil);
+        popDamage('boss', recoil);
+        $('log').textContent = `blocked the big one. it bounced back for ${recoil} damage`;
+        later(() => say('right', pick(BLOCKED_LINES)), 700);
+        dmg = 0;
+      } else {
+        $('log').textContent = `the hater's big combo hit you for ${BIG_HIT}. should've blocked`;
+      }
+    } else if (turn % 4 === 3) {
+      charging = true;
+      say('right', '*inhales*');
+      $('log').textContent = 'the hater is charging something big. maybe block next turn';
+    } else {
+      line = pick(INSULTS);
+      dmg = rand(3, 6);
+      say('right', line);
+      if (blocking) { $('log').textContent = `"${line}" — blocked`; dmg = 0; }
+      else $('log').textContent = `"${line}" — ${dmg} damage`;
+    }
+    blocking = false;
+    $('shield').classList.remove('on');
+    if (dmg) { you = Math.max(0, you - dmg); popDamage('you', dmg); }
+    render();
+    if (boss <= 0) return later(win, 600);
+    if (you <= 0) return later(lose, 700);
+    busy = false;
+    render();
+  }
+
+  function win() {
+    over = true; busy = false;
+    hideBubble('left');
+    say('right', 'ok fine. delaun is awesome');
+    later(() => { hideBubble('right'); bossImg.classList.add('gone'); }, 1300);
+    $('log').textContent = 'the hater left the chat. you win';
+    render();
+    $('next').disabled = false;
+    $('next').focus();
+  }
+
+  function lose() {
+    over = true; busy = false;
+    $('overTitle').textContent = 'you got ratioed';
+    $('overSub').textContent = 'the hater won this time. tip: block when it inhales';
+    $('over').classList.add('show');
+    render();
+  }
+
+  document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => act(b.dataset.act)));
+  $('retry').addEventListener('click', reset);
+  reset();
+</script>
+</body>
+</html>
