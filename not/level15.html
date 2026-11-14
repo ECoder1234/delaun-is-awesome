@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 15</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  main { text-align: center; padding: 0 16px 100px; }
+  .count { font-weight: 800; font-size: 2rem; margin: 6px 0 10px; }
+  .count span { color: var(--gold); -webkit-text-stroke: 2px var(--ink); }
+  .line { min-height: 1.5em; font-weight: 700; margin-bottom: 10px; }
+  .crowd {
+    position: relative;
+    max-width: 860px;
+    height: min(60vh, 520px);
+    min-height: 320px;
+    margin: 0 auto;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    background: #fff;
+    overflow: hidden;
+    touch-action: manipulation;
+    cursor: crosshair;
+  }
+  .crowd img {
+    position: absolute;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+  }
+  .crowd img.flip { transform: scaleX(-1); }
+  .crowd.shake { animation: shake 0.3s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+  .ring {
+    position: absolute;
+    border: 4px solid var(--gold);
+    outline: 3px solid var(--ink);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 20000;
+    animation: ring 0.6s ease-out forwards;
+  }
+  @keyframes ring { from { transform: scale(0.4); } to { transform: scale(1.2); opacity: 0.2; } }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 15</span></div>
+
+  <main>
+    <h1>find delaun</h1>
+    <p class="sub">delaun is hiding from the haters. the crown is a giveaway</p>
+    <div class="count"><span id="count">0</span>/3</div>
+    <div class="line" id="line">loading the crowd...</div>
+    <div class="crowd" id="crowd"></div>
+  </main>
+
+  <button class="next" id="next" disabled onclick="location.href='level16.html'">next level</button>
+
+<script>
+  const GOAL = 3;
+  const crowd = document.getElementById('crowd');
+  const countEl = document.getElementById('count');
+  const line = document.getElementById('line');
+  const next = document.getElementById('next');
+
+  const WRONG = ['nope, random guy', 'not delaun', 'that is clearly not delaun', 'look for the crown', 'wrong person lol'];
+  const FOUND = ['found delaun', 'there it is', 'easy. ok round 3 is bigger'];
+
+  let found = 0, people = 40, busy = false, wrongI = 0, delaunEl = null;
+
+  const loadImg = src => new Promise(res => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => res(i);
+    i.src = src;
+  });
+
+  let playerImg, delaunImg;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function layout() {
+    crowd.innerHTML = '';
+    const W = crowd.clientWidth, H = crowd.clientHeight;
+    const base = Math.max(0.8, Math.min(1, W / 760));
+    const make = (img, isDelaun) => {
+      const el = document.createElement('img');
+      el.src = img.src;
+      el.alt = '';
+      el.draggable = false;
+      const h = rand(48, 80) * base;
+      const ratio = (img.naturalWidth || 160) / (img.naturalHeight || 192);
+      const w = h * ratio;
+      const x = rand(0, Math.max(0, W - w));
+      const y = rand(0, Math.max(0, H - h));
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.height = h + 'px';
+      el.style.width = w + 'px';
+      // characters lower on screen are drawn in front; delaun always stays clickable
+      el.style.zIndex = isDelaun ? 10000 : Math.round(y + h);
+      if (Math.random() < 0.5) el.classList.add('flip');
+      if (isDelaun) el.dataset.delaun = '1';
+      crowd.appendChild(el);
+      return el;
+    };
+    for (let i = 0; i < people; i++) make(playerImg, false);
+    delaunEl = make(delaunImg, true);
+  }
+
+  crowd.addEventListener('click', e => {
+    if (busy || found >= GOAL) return;
+    if (e.target.dataset && e.target.dataset.delaun) {
+      found++;
+      countEl.textContent = found;
+      const r = e.target.getBoundingClientRect(), c = crowd.getBoundingClientRect();
+      const size = Math.max(r.width, r.height) + 30;
+      const ring = document.createElement('div');
+      ring.className = 'ring';
+      ring.style.width = ring.style.height = size + 'px';
+      ring.style.left = (r.left - c.left + r.width / 2 - size / 2) + 'px';
+      ring.style.top = (r.top - c.top + r.height / 2 - size / 2) + 'px';
+      crowd.appendChild(ring);
+      if (found >= GOAL) {
+        line.textContent = 'found delaun 3 times. nowhere to hide';
+        next.disabled = false;
+        next.focus();
+        return;
+      }
+      line.textContent = FOUND[found - 1];
+      busy = true;
+      setTimeout(() => {
+        people += 15;
+        layout();
+        busy = false;
+        line.textContent = people + ' people now. good luck';
+      }, 700);
+    } else {
+      line.textContent = WRONG[wrongI++ % WRONG.length];
+      crowd.classList.remove('shake');
+      void crowd.offsetWidth;
+      crowd.classList.add('shake');
+    }
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (found < GOAL && playerImg) layout(); }, 250);
+  });
+
+  Promise.all([loadImg('../assets/player.png'), loadImg('../assets/delaun.png')]).then(([p, d]) => {
+    playerImg = p;
+    delaunImg = d;
+    layout();
+    line.textContent = 'click delaun';
+  });
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 25</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  .topbar, .wrap { position: relative; z-index: 1; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px 40px; text-align: center; }
+  h1 { margin-top: 4px; font-size: clamp(2.6rem, 9vw, 4.4rem); }
+  .sub { margin-bottom: 20px; }
+
+  .cert {
+    background: #fff;
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    outline: 3px solid var(--gold);
+    outline-offset: -16px;
+    padding: 36px 28px 30px;
+  }
+  .cert svg { width: 64px; height: 64px; }
+  .cert .k { color: #4a453e; font-size: 1rem; margin: 6px 0; }
+  .cert .name {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(2.2rem, 9vw, 3.4rem);
+    line-height: 1.1;
+    min-height: 1.1em;
+    border-bottom: 3px solid var(--ink);
+    display: inline-block;
+    min-width: 60%;
+    padding: 0 12px;
+    word-break: break-word;
+  }
+  .cert .name.empty { color: var(--muted); }
+  .cert .title {
+    display: inline-block;
+    margin-top: 6px;
+    font-weight: 800;
+    font-size: clamp(1.5rem, 6vw, 2.3rem);
+    background: var(--gold);
+    border: 3px solid var(--ink);
+    border-radius: 10px;
+    padding: 2px 14px;
+    transform: rotate(-2deg);
+  }
+  .cert .foot { display: flex; justify-content: space-between; gap: 16px; margin-top: 28px; text-align: left; font-size: 0.9rem; color: #4a453e; }
+  .cert .foot b { display: block; color: var(--ink); font-size: 1.05rem; }
+  .cert .foot .sig b { font-family: 'Caveat', cursive; font-size: 1.8rem; line-height: 1; }
+  .cert .foot .sig { text-align: right; }
+
+  .field { margin: 22px 0 18px; }
+  .field label { display: block; font-weight: 700; margin-bottom: 6px; }
+  .field input {
+    width: min(100%, 320px);
+    font: inherit; font-size: 1.15rem; text-align: center;
+    padding: 10px 14px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  .field input:focus { border-color: var(--blue); }
+
+  .again {
+    font: inherit; font-weight: 700; font-size: 1rem;
+    padding: 12px 26px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: var(--gold); color: var(--ink);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 25</span></div>
+
+  <div class="wrap">
+    <h1>the end</h1>
+    <p class="sub">you beat all 25 levels. delaun is not awesome. you knew that.</p>
+
+    <div class="cert" id="cert">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M14 72 L8 30 L32 50 L50 18 L68 50 L92 30 L86 72 Z" fill="#f5b700" stroke="#1b1b1b" stroke-width="6" stroke-linejoin="round"/>
+        <rect x="14" y="70" width="72" height="14" rx="3" fill="#f5b700" stroke="#1b1b1b" stroke-width="6"/>
+        <circle cx="50" cy="56" r="6" fill="#ff5a36" stroke="#1b1b1b" stroke-width="4"/>
+      </svg>
+      <div class="k">this certifies that</div>
+      <div class="name empty" id="certName">your name here</div>
+      <div class="k">is officially a</div>
+      <div class="title">certified delaun hater</div>
+      <div class="foot">
+        <span>date<b id="date"></b></span>
+        <span class="sig">signed<b>Delaun (not happy)</b></span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="name">put your name on it</label>
+      <input id="name" maxlength="24" autocomplete="off" placeholder="type your name">
+    </div>
+
+    <button class="again" onclick="location.href='index.html'">play again</button>
+  </div>
+
+<script>
+  // certificate
+  const nameInput = document.getElementById('name');
+  const certName = document.getElementById('certName');
+  nameInput.addEventListener('input', () => {
+    const v = nameInput.value.trim();
+    certName.textContent = v || 'your name here';
+    certName.classList.toggle('empty', !v);
+  });
+  document.getElementById('date').textContent =
+    new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }).toLowerCase();
+
+  // confetti
+  const canvas = document.getElementById('confetti');
+  const ctx = canvas.getContext('2d');
+  const COLORS = ['#f5b700', '#4da3ff', '#ff5a36', '#ffffff', '#3fae5a'];
+  let W, H, dpr, pieces = [];
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function makePiece(startAbove) {
+    return {
+      x: Math.random() * W,
+      y: startAbove ? -20 - Math.random() * H : Math.random() * H,
+      w: 8 + Math.random() * 8,
+      h: 5 + Math.random() * 6,
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 6,
+      vy: 50 + Math.random() * 90,
+      sway: Math.random() * Math.PI * 2,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    };
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  const COUNT = Math.round(Math.min(140, W * H / 9000));
+  for (let i = 0; i < COUNT; i++) pieces.push(makePiece(i % 2 === 0));
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let last = 0;
+  function frame(t) {
+    const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
+    last = t;
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#1b1b1b';
+    for (const p of pieces) {
+      p.y += p.vy * dt;
+      p.sway += dt * 2;
+      p.x += Math.sin(p.sway) * 30 * dt;
+      p.rot += p.vr * dt;
+      if (p.y > H + 20) Object.assign(p, makePiece(true), { y: -20 });
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.strokeRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaundle - level 6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  body { padding-bottom: 24px; }
+  .wrap .next { position: static; transform: none; display: none; margin: 0 auto 12px; }
+  .wrap .next:not(:disabled) { display: inline-block; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 0 16px; text-align: center; }
+  h1 { margin-top: 4px; }
+  .sub { margin-bottom: 14px; }
+  .legend { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 16px; color: #4a453e; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 4px; vertical-align: -2px; margin-right: 4px; }
+
+  .board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 6px; width: min(100%, 360px); margin: 0 auto; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .row.shake { animation: shake 0.35s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  .tile {
+    aspect-ratio: 1;
+    display: grid; place-items: center;
+    border: 3px solid var(--soft);
+    border-radius: 10px;
+    background: #fff;
+    font-weight: 800;
+    font-size: clamp(1.3rem, 6vw, 1.9rem);
+    text-transform: uppercase;
+    user-select: none;
+  }
+  .tile.filled { border-color: var(--ink); animation: pop 0.1s; }
+  @keyframes pop { 50% { transform: scale(1.08); } }
+  .tile.flip { animation: flip 0.45s ease-in-out; }
+  @keyframes flip { 50% { transform: rotateX(90deg); } }
+  .tile.hit, .key.hit { background: var(--gold); border-color: var(--ink); }
+  .tile.near, .key.near { background: var(--blue); border-color: var(--ink); }
+  .tile.miss, .key.miss { background: var(--muted); border-color: var(--ink); color: #fff; }
+  .tile.win { animation: jump 0.5s; }
+  @keyframes jump { 40% { transform: translateY(-14px); } }
+
+  .msg { min-height: 28px; margin: 14px 0 6px; font-weight: 700; font-size: 1.1rem; }
+  .again {
+    display: none;
+    font: inherit; font-weight: 700;
+    padding: 8px 18px; margin-bottom: 8px;
+    border: 3px solid var(--ink); border-radius: 10px;
+    background: #fff; cursor: pointer;
+  }
+
+  .keyboard { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .krow { display: flex; gap: 5px; justify-content: center; }
+  .key {
+    flex: 1; max-width: 44px; height: 54px;
+    font: inherit; font-weight: 700; font-size: 1rem; text-transform: uppercase;
+    border: 2px solid var(--ink); border-radius: 8px;
+    background: #fff; color: var(--ink);
+    cursor: pointer; padding: 0;
+    touch-action: manipulation;
+  }
+  .key.wide { max-width: 68px; flex: 1.5; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 6</span></div>
+
+  <div class="wrap">
+    <h1>delaundle</h1>
+    <p class="sub">guess the 6 letter word. you have 6 tries.</p>
+    <div class="legend">
+      <span><i style="background:var(--gold)"></i>right spot</span>
+      <span><i style="background:var(--blue)"></i>wrong spot</span>
+      <span><i style="background:var(--muted)"></i>not in it</span>
+    </div>
+
+    <div class="board" id="board"></div>
+    <div class="msg" id="msg"></div>
+    <button class="again" id="again">try again</button>
+    <button class="next" id="next" disabled onclick="location.href='level7.html'">next level</button>
+    <div class="keyboard" id="keyboard"></div>
+  </div>
+
+<script>
+  const ANSWER = 'delaun';
+  const LEN = 6, TRIES = 6;
+  const board = document.getElementById('board');
+  const msgEl = document.getElementById('msg');
+  const againBtn = document.getElementById('again');
+  const next = document.getElementById('next');
+  const keyboardEl = document.getElementById('keyboard');
+
+  let row, guess, done, locked, keyState;
+
+  const WRONG_LINES = ['nope', 'nah', 'not it', 'colder', 'think harder', 'last chance'];
+
+  function build() {
+    board.innerHTML = '';
+    for (let r = 0; r < TRIES; r++) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'row';
+      for (let c = 0; c < LEN; c++) {
+        const t = document.createElement('div');
+        t.className = 'tile';
+        rowEl.appendChild(t);
+      }
+      board.appendChild(rowEl);
+    }
+    row = 0; guess = ''; done = false; locked = false; keyState = {};
+    msgEl.textContent = '';
+    againBtn.style.display = 'none';
+    document.querySelectorAll('.key').forEach(k => k.classList.remove('hit', 'near', 'miss'));
+  }
+
+  function buildKeyboard() {
+    const rows = ['qwertyuiop', 'asdfghjkl', '+zxcvbnm-'];
+    rows.forEach(letters => {
+      const r = document.createElement('div');
+      r.className = 'krow';
+      for (const ch of letters) {
+        const k = document.createElement('button');
+        k.className = 'key';
+        if (ch === '+') { k.textContent = 'enter'; k.classList.add('wide'); k.dataset.key = 'Enter'; }
+        else if (ch === '-') { k.textContent = '⌫'; k.classList.add('wide'); k.dataset.key = 'Backspace'; k.setAttribute('aria-label', 'Backspace'); }
+        else { k.textContent = ch; k.dataset.key = ch; }
+        k.addEventListener('click', () => { handle(k.dataset.key); k.blur(); });
+        r.appendChild(k);
+      }
+      keyboardEl.appendChild(r);
+    });
+  }
+
+  const tiles = () => board.children[row].children;
+
+  function render() {
+    const ts = tiles();
+    for (let i = 0; i < LEN; i++) {
+      ts[i].textContent = guess[i] || '';
+      ts[i].classList.toggle('filled', !!guess[i]);
+    }
+  }
+
+  function score(g) {
+    const res = Array(LEN).fill('miss');
+    const left = {};
+    for (let i = 0; i < LEN; i++) {
+      if (g[i] === ANSWER[i]) res[i] = 'hit';
+      else left[ANSWER[i]] = (left[ANSWER[i]] || 0) + 1;
+    }
+    for (let i = 0; i < LEN; i++) {
+      if (res[i] !== 'hit' && left[g[i]]) { res[i] = 'near'; left[g[i]]--; }
+    }
+    return res;
+  }
+
+  const RANK = { miss: 1, near: 2, hit: 3 };
+  function paintKey(ch, state) {
+    if ((RANK[keyState[ch]] || 0) >= RANK[state]) return;
+    keyState[ch] = state;
+    const k = keyboardEl.querySelector(`[data-key="${ch}"]`);
+    k.classList.remove('hit', 'near', 'miss');
+    k.classList.add(state);
+  }
+
+  function submit() {
+    const rowEl = board.children[row];
+    if (guess.length < LEN) {
+      msgEl.textContent = 'needs 6 letters';
+      rowEl.classList.remove('shake'); void rowEl.offsetWidth; rowEl.classList.add('shake');
+      return;
+    }
+    locked = true;
+    const res = score(guess);
+    const ts = tiles();
+    const g = guess;
+    res.forEach((state, i) => {
+      setTimeout(() => {
+        ts[i].classList.add('flip');
+        setTimeout(() => ts[i].classList.add(state), 220);
+      }, i * 230);
+    });
+    setTimeout(() => {
+      res.forEach((state, i) => paintKey(g[i], state));
+      if (g === ANSWER) {
+        done = true;
+        [...ts].forEach((t, i) => setTimeout(() => t.classList.add('win'), i * 80));
+        msgEl.textContent = 'yep. delaun. still not awesome';
+        next.disabled = false;
+        next.focus();
+      } else if (row === TRIES - 1) {
+        done = true;
+        msgEl.textContent = "out of tries. it's the name of the website, hater";
+        againBtn.style.display = 'inline-block';
+      } else {
+        msgEl.textContent = WRONG_LINES[row];
+        row++;
+        guess = '';
+      }
+      locked = false;
+    }, LEN * 230 + 300);
+  }
+
+  function handle(key) {
+    if (done || locked) return;
+    if (key === 'Enter') return submit();
+    if (key === 'Backspace') { guess = guess.slice(0, -1); render(); return; }
+    if (/^[a-z]$/i.test(key) && guess.length < LEN) {
+      guess += key.toLowerCase();
+      msgEl.textContent = '';
+      render();
+    }
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Enter' && document.activeElement === next && !next.disabled) return;
+    if (e.key === 'Enter' || e.key === 'Backspace' || /^[a-z]$/i.test(e.key)) {
+      e.preventDefault();
+      handle(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+    }
+  });
+  againBtn.addEventListener('click', () => { build(); againBtn.blur(); });
+
+  buildKeyboard();
+  build();
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

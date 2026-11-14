@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 14</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  main { text-align: center; padding: 4px 16px 0; }
+  .timer {
+    font-weight: 800;
+    font-size: clamp(3rem, 12vw, 5.5rem);
+    line-height: 1;
+    margin: 14px 0 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .line { min-height: 1.6em; font-weight: 700; font-size: 1.15rem; }
+  .stage { position: relative; height: 44vh; min-height: 240px; }
+  #bait {
+    position: absolute;
+    left: 50%; top: 50%;
+    font: inherit; font-weight: 800; font-size: 1.6rem;
+    padding: 22px 40px;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    background: var(--gold);
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--s, 1)) rotate(var(--r, 0deg));
+    transition: transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #bait:disabled { background: var(--paper); color: var(--muted); border-color: var(--muted); cursor: default; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 14</span></div>
+
+  <main>
+    <h1>don't click it</h1>
+    <p class="sub">survive 15 seconds. that's it. easy right</p>
+    <div class="timer" id="timer">15.0</div>
+    <div class="line" id="line"></div>
+    <div class="stage" id="stage">
+      <button id="bait">don't click</button>
+    </div>
+  </main>
+
+  <button class="next" id="next" disabled onclick="location.href='level15.html'">next level</button>
+
+<script>
+  const DURATION = 15000;
+  const bait = document.getElementById('bait');
+  const timer = document.getElementById('timer');
+  const line = document.getElementById('line');
+  const stage = document.getElementById('stage');
+  const next = document.getElementById('next');
+
+  const BAITS = [
+    [0, "don't click"],
+    [3000, "pls"],
+    [5500, "one click"],
+    [8000, "free crown"],
+    [10500, "click to roast delaun"],
+    [12500, "CLICK ME"],
+    [14000, "LAST CHANCE"],
+  ];
+  const MOCK = [
+    "lol. you clicked it",
+    "it literally said don't",
+    "zero self control",
+    "delaun saw that. embarrassing",
+    "back to 15. good job",
+    "wow. again?",
+    "the button wins again",
+  ];
+
+  let start = performance.now();
+  let done = false;
+  let mockI = 0;
+  let mouse = null;
+
+  bait.addEventListener('click', () => {
+    if (done) return;
+    line.textContent = MOCK[mockI++ % MOCK.length];
+    start = performance.now();
+  });
+
+  document.addEventListener('pointermove', e => { mouse = { x: e.clientX, y: e.clientY }; });
+
+  function tick() {
+    if (done) return;
+    const now = performance.now();
+    const elapsed = now - start;
+    const left = Math.max(0, DURATION - elapsed);
+    timer.textContent = (left / 1000).toFixed(1);
+
+    const p = Math.min(1, elapsed / DURATION);
+    let text = BAITS[0][1];
+    for (const [t, s] of BAITS) if (elapsed >= t) text = s;
+    if (bait.textContent !== text) bait.textContent = text;
+
+    const scale = 1 + p * 0.6;
+    const rot = p > 0.3 ? Math.sin(now / 60) * p * 8 : 0;
+    let dx = 0, dy = 0;
+    if (mouse && p > 0.15) {
+      const r = stage.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      dx = Math.max(-120, Math.min(120, (mouse.x - cx) * 0.3 * p));
+      dy = Math.max(-80, Math.min(80, (mouse.y - cy) * 0.3 * p));
+    }
+    bait.style.setProperty('--s', scale.toFixed(3));
+    bait.style.setProperty('--r', rot.toFixed(2) + 'deg');
+    bait.style.setProperty('--dx', dx.toFixed(1) + 'px');
+    bait.style.setProperty('--dy', dy.toFixed(1) + 'px');
+
+    if (left === 0) win();
+  }
+
+  function win() {
+    done = true;
+    bait.disabled = true;
+    bait.textContent = 'ok fine. you win';
+    bait.style.setProperty('--s', 1);
+    bait.style.setProperty('--r', '0deg');
+    bait.style.setProperty('--dx', '0px');
+    bait.style.setProperty('--dy', '0px');
+    timer.textContent = '0.0';
+    line.textContent = '15 seconds of pure discipline. delaun could never';
+    next.disabled = false;
+    next.focus();
+  }
+
+  setInterval(tick, 50);
+  tick();
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

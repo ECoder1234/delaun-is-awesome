@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 10</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  .moves { font-weight: 700; margin: 14px 0; font-size: 1.1rem; }
+  .moves b { font-weight: 800; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: min(100%, 440px);
+    margin: 0 auto;
+  }
+  .card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    padding: 0; border: none; background: none;
+    cursor: pointer;
+    perspective: 600px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .inner {
+    position: absolute; inset: 0;
+    transition: transform 0.35s;
+    transform-style: preserve-3d;
+  }
+  .card.up .inner, .card.done .inner { transform: rotateY(180deg); }
+  .face, .back {
+    position: absolute; inset: 0;
+    border: 3px solid var(--ink); border-radius: 12px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: grid; place-items: center;
+  }
+  .back { background: var(--ink); color: var(--gold); font-weight: 800; font-size: clamp(1.4rem, 6vw, 2.2rem); }
+  .face { background: #fff; transform: rotateY(180deg); }
+  .face svg { width: 72%; height: 72%; }
+  .card.done .face { background: #fff3d6; border-color: var(--ink); }
+  .card.done { cursor: default; }
+  .card.nope .face { background: #ffd9d1; }
+  .card:focus-visible { outline: 3px dashed var(--blue); outline-offset: 3px; border-radius: 12px; }
+
+  .msg { min-height: 30px; margin: 16px 0 4px; font-weight: 700; font-size: 1.15rem; }
+  .wrap .next { position: static; transform: none; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 10</span></div>
+
+  <div class="wrap">
+    <h1>match</h1>
+    <p class="sub">find all 6 pairs. delaun needed like 40 moves lol</p>
+    <div class="moves">moves: <b id="moves">0</b> &nbsp; pairs: <b id="pairs">0/6</b></div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="msg" id="msg"></div>
+    <button class="next" id="next" disabled onclick="location.href='level11.html'">next level</button>
+  </div>
+
+<script>
+  const S = 'stroke="#1b1b1b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"';
+  const ICONS = {
+    crown: `<svg viewBox="0 0 100 100"><path d="M16 70 L10 32 L32 50 L50 20 L68 50 L90 32 L84 70 Z" fill="#f5b700" ${S}/><rect x="16" y="68" width="68" height="13" rx="3" fill="#f5b700" ${S}/><circle cx="50" cy="56" r="5" fill="#ff5a36" stroke="#1b1b1b" stroke-width="4"/></svg>`,
+    star: `<svg viewBox="0 0 100 100"><path d="M50 10 L61 37 L90 39 L67 57 L75 86 L50 70 L25 86 L33 57 L10 39 L39 37 Z" fill="#4da3ff" ${S}/></svg>`,
+    trophy: `<svg viewBox="0 0 100 100"><path d="M28 14 H72 V40 Q72 62 50 62 Q28 62 28 40 Z" fill="#f5b700" ${S}/><path d="M28 22 H14 Q14 44 30 46 M72 22 H86 Q86 44 70 46" fill="none" ${S}/><path d="M44 62 H56 V74 H44 Z" fill="#f5b700" ${S}/><rect x="30" y="74" width="40" height="12" rx="3" fill="#9a9286" ${S}/></svg>`,
+    flame: `<svg viewBox="0 0 100 100"><path d="M50 8 Q58 30 72 40 Q86 52 82 68 Q76 90 50 90 Q24 90 18 68 Q14 50 30 38 Q32 52 42 54 Q36 30 50 8 Z" fill="#ff5a36" ${S}/><path d="M50 52 Q58 62 62 70 Q64 82 50 82 Q36 82 38 70 Q40 62 50 52 Z" fill="#f5b700" ${S}/></svg>`,
+    shades: `<svg viewBox="0 0 100 100"><path d="M6 38 H94" fill="none" ${S}/><path d="M12 38 H44 V50 Q44 66 28 66 Q12 66 12 50 Z" fill="#1b1b1b" ${S}/><path d="M56 38 H88 V50 Q88 66 72 66 Q56 66 56 50 Z" fill="#1b1b1b" ${S}/><path d="M20 44 L28 44" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M64 44 L72 44" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>`,
+    thumbs: `<svg viewBox="0 0 100 100"><rect x="14" y="44" width="18" height="40" rx="4" fill="#4da3ff" ${S}/><path d="M32 48 L50 18 Q56 10 62 16 Q66 22 62 32 L58 42 H80 Q90 42 88 54 L82 78 Q80 86 70 86 H32 Z" fill="#f4c99b" ${S}/></svg>`,
+  };
+  const KINDS = Object.keys(ICONS);
+
+  const grid = document.getElementById('grid');
+  const movesEl = document.getElementById('moves');
+  const pairsEl = document.getElementById('pairs');
+  const msgEl = document.getElementById('msg');
+  const next = document.getElementById('next');
+
+  let first = null, lock = false, moves = 0, pairs = 0;
+
+  const deck = [...KINDS, ...KINDS];
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  deck.forEach((kind, i) => {
+    const c = document.createElement('button');
+    c.className = 'card';
+    c.dataset.kind = kind;
+    c.setAttribute('aria-label', 'card ' + (i + 1));
+    c.innerHTML = `<div class="inner"><div class="back">?</div><div class="face">${ICONS[kind]}</div></div>`;
+    c.addEventListener('click', () => flip(c));
+    grid.appendChild(c);
+  });
+
+  function flip(c) {
+    if (lock || c.classList.contains('up') || c.classList.contains('done')) return;
+    c.classList.add('up');
+    c.setAttribute('aria-label', c.dataset.kind);
+    if (!first) { first = c; return; }
+
+    moves++;
+    movesEl.textContent = moves;
+    const a = first, b = c;
+    first = null;
+
+    if (a.dataset.kind === b.dataset.kind) {
+      a.classList.add('done'); b.classList.add('done');
+      pairs++;
+      pairsEl.textContent = pairs + '/6';
+      if (pairs === 6) {
+        msgEl.textContent = moves <= 10 ? `${moves} moves?? delaun could never` : `done in ${moves} moves. still better than delaun`;
+        next.disabled = false;
+        next.focus();
+      }
+    } else {
+      lock = true;
+      setTimeout(() => { a.classList.add('nope'); b.classList.add('nope'); }, 300);
+      setTimeout(() => {
+        a.classList.remove('up', 'nope'); b.classList.remove('up', 'nope');
+        a.setAttribute('aria-label', 'card'); b.setAttribute('aria-label', 'card');
+        lock = false;
+      }, 900);
+    }
+  }
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

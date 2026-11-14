@@ -14,6 +14,7 @@
 
   const m = location.pathname.match(/level(\d+)\.html$/);
   const LEVEL = m ? +m[1] : 1;
+  const IN_NOT = /\/not\/[^/]*$/.test(location.pathname);
   const pageFor = n => (n <= 1 || n > LAST ? 'index.html' : `level${n}.html`);
 
   // ---- saved text edits (only elements you actually typed into) ----------
@@ -100,7 +101,8 @@
         <span><button class="ap-x" data-act="min" title="minimize">–</button><button class="ap-x" data-act="close" title="leave admin mode">×</button></span></div>
       <div class="ap-body">
         <div><div class="ap-label">level ${LEVEL}</div>
-          <div class="ap-row"><button data-act="beat">beat it</button><button data-act="skip">skip →</button></div></div>
+          <div class="ap-row"><button data-act="beat">beat it</button><button data-act="skip">skip →</button></div>
+          <div class="ap-row" style="margin-top:6px"><button data-act="not" class="${IN_NOT ? 'on' : ''}">not mode: ${IN_NOT ? 'on' : 'off'}</button></div></div>
         <div><div class="ap-label">jump to level</div><div class="ap-grid">${grid}</div></div>
         <div><div class="ap-label">text</div>
           <div class="ap-row"><button data-act="edit">edit text: off</button><button data-act="reset">reset</button></div>
@@ -117,6 +119,7 @@
       const act = b.dataset.act;
       if (act === 'beat') beat();
       else if (act === 'skip') { saveIfEditing(); location.href = pageFor(LEVEL + 1); }
+      else if (act === 'not') { saveIfEditing(); location.href = (IN_NOT ? '../' : 'not/') + pageFor(LEVEL); }
       else if (act === 'edit') setEditing(!editing);
       else if (act === 'reset') { setEditing(false); store.del('localStorage', KEY_TEXT); location.reload(); }
       else if (act === 'min') panel.classList.toggle('min');
@@ -164,7 +167,8 @@
 
   // ---- the secret word ---------------------------------------------------
   let typed = '';
-  const blocked = t => t && t.closest && t.closest('[data-no-admin]');
+  // like youtube shortcuts: works anywhere on the page, but not while typing in a text box
+  const blocked = t => t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], [data-no-admin]');
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey || blocked(e.target)) return;
     if (e.key === 'Backspace') { typed = typed.slice(0, -1); return; }
@@ -172,14 +176,6 @@
     typed = (typed + e.key).slice(-SECRET.length);
     if (typed === SECRET) { typed = ''; open(); }
   }, true);
-  // phone keyboards often don't report keys, so also watch text boxes
-  document.addEventListener('input', e => {
-    const t = e.target;
-    if (blocked(t)) return;
-    const v = t && (t.value !== undefined ? t.value : t.textContent);
-    if (typeof v === 'string' && v.includes(SECRET) && !(t.closest && t.closest('[data-admin-edit]'))) open();
-  }, true);
-
   function init() {
     applyText();
     if (store.get('sessionStorage', KEY_ON)) open();

@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 9</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  .stats { display: flex; justify-content: center; gap: 12px; margin: 18px 0; }
+  .stat {
+    border: 3px solid var(--ink); border-radius: 12px; background: #fff;
+    padding: 8px 16px; min-width: 110px;
+  }
+  .stat b { display: block; font-size: 2rem; font-weight: 800; line-height: 1.1; }
+  .stat span { font-size: 0.85rem; color: #4a453e; }
+  .stat.low b { color: #d8432a; }
+
+  .target {
+    font-weight: 800;
+    font-size: clamp(1.6rem, 7vw, 2.6rem);
+    letter-spacing: 0.02em;
+    margin: 8px 0 14px;
+    white-space: pre;
+  }
+  .target span { color: var(--muted); }
+  .target span.ok { color: var(--ink); }
+  .target span.bad { color: #fff; background: #d8432a; border-radius: 4px; }
+  .target span.cur { border-bottom: 4px solid var(--gold); }
+
+  input {
+    width: 100%;
+    font: inherit; font-size: 1.3rem; font-weight: 500;
+    padding: 14px 16px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink);
+    outline: none; text-align: center;
+  }
+  input:focus { border-color: var(--blue); }
+  input:disabled { background: var(--soft); }
+
+  .msg { min-height: 30px; margin: 14px 0 4px; font-weight: 700; font-size: 1.15rem; }
+  .retry {
+    display: none;
+    font: inherit; font-weight: 700;
+    padding: 8px 18px; margin: 4px auto 0;
+    border: 3px solid var(--ink); border-radius: 10px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .wrap .next { position: static; transform: none; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 9</span></div>
+
+  <div class="wrap">
+    <h1>type it</h1>
+    <p class="sub">5 times in 30 seconds. no copy paste, we checked</p>
+
+    <div class="stats">
+      <div class="stat" id="timeBox"><b id="time">30.0</b><span>seconds</span></div>
+      <div class="stat"><b id="count">0/5</b><span>done</span></div>
+    </div>
+
+    <div class="target" id="target"></div>
+    <input id="input" data-no-admin autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           placeholder="start typing to start the clock" aria-label="Type the phrase">
+
+    <div class="msg" id="msg"></div>
+    <button class="retry" id="retry">try again</button>
+    <br>
+    <button class="next" id="next" disabled onclick="location.href='level10.html'">next level</button>
+  </div>
+
+<script>
+  const PHRASE = 'delaun is not awesome';
+  const GOAL = 5, LIMIT = 30;
+  const input = document.getElementById('input');
+  const targetEl = document.getElementById('target');
+  const timeEl = document.getElementById('time');
+  const timeBox = document.getElementById('timeBox');
+  const countEl = document.getElementById('count');
+  const msgEl = document.getElementById('msg');
+  const retryBtn = document.getElementById('retry');
+  const next = document.getElementById('next');
+
+  const CHEERS = ['one down', 'two. keep going', 'three. halfway-ish', 'one more'];
+
+  let count, startTime, timer, over;
+
+  function renderTarget() {
+    const typed = input.value.toLowerCase();
+    targetEl.innerHTML = '';
+    for (let i = 0; i < PHRASE.length; i++) {
+      const s = document.createElement('span');
+      s.textContent = PHRASE[i];
+      if (i < typed.length) s.className = typed[i] === PHRASE[i] ? 'ok' : 'bad';
+      else if (i === typed.length) s.className = 'cur';
+      targetEl.appendChild(s);
+    }
+  }
+
+  function reset() {
+    count = 0; startTime = null; over = false;
+    clearInterval(timer);
+    input.value = '';
+    input.disabled = false;
+    input.placeholder = 'start typing to start the clock';
+    timeEl.textContent = LIMIT.toFixed(1);
+    timeBox.classList.remove('low');
+    countEl.textContent = '0/' + GOAL;
+    msgEl.textContent = '';
+    retryBtn.style.display = 'none';
+    renderTarget();
+    input.focus();
+  }
+
+  function tick() {
+    const left = Math.max(0, LIMIT - (performance.now() - startTime) / 1000);
+    timeEl.textContent = left.toFixed(1);
+    timeBox.classList.toggle('low', left < 8);
+    if (left <= 0) {
+      over = true;
+      clearInterval(timer);
+      input.disabled = true;
+      input.placeholder = 'out of time';
+      msgEl.textContent = 'too slow. even delaun is faster';
+      retryBtn.style.display = 'inline-block';
+    }
+  }
+
+  input.addEventListener('input', () => {
+    if (over) return;
+    if (startTime === null && input.value.length) {
+      startTime = performance.now();
+      timer = setInterval(tick, 50);
+    }
+    if (input.value.toLowerCase() === PHRASE) {
+      count++;
+      countEl.textContent = count + '/' + GOAL;
+      input.value = '';
+      if (count >= GOAL) {
+        over = true;
+        clearInterval(timer);
+        input.disabled = true;
+        input.placeholder = 'done';
+        const took = ((performance.now() - startTime) / 1000).toFixed(1);
+        msgEl.textContent = `done in ${took}s. delaun is offended`;
+        next.disabled = false;
+        next.focus();
+      } else {
+        msgEl.textContent = CHEERS[count - 1];
+      }
+    }
+    renderTarget();
+  });
+
+  input.addEventListener('paste', e => { e.preventDefault(); msgEl.textContent = 'nice try'; });
+  input.addEventListener('drop', e => e.preventDefault());
+  retryBtn.addEventListener('click', reset);
+
+  reset();
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

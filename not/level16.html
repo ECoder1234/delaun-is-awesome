@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; }
+  .sub { margin-bottom: 14px; }
+  .game {
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    overflow: hidden;
+    width: min(100%, 420px);
+    margin: 0 auto;
+    background: #bfe0ff;
+  }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: pointer; }
+  .hint { margin: 12px 0; color: #4a453e; }
+  .wrap .next { position: static; transform: none; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 16</span></div>
+
+  <div class="wrap">
+    <h1>crown flap</h1>
+    <p class="sub">you stole delaun's crown. fly it through 10 gaps</p>
+    <div class="game"><canvas id="game"></canvas></div>
+    <p class="hint">tap, click or press space to flap</p>
+    <button class="next" id="next" disabled onclick="location.href='level17.html'">next level</button>
+  </div>
+
+<script>
+  const GOAL = 10;
+  const W = 400, H = 560, GROUND = 60;
+  const PIPE_W = 72, GAP = 200, SPACING = 240, SPEED = 135;
+  const GRAVITY = 1250, FLAP = -380, R = 17;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const next = document.getElementById('next');
+
+  const crownPath = new Path2D('M14 72 L8 30 L32 50 L50 18 L68 50 L92 30 L86 72 Z');
+  const AGAIN = ['again', 'again. you got this', 'again (delaun is laughing at you)', 'again', 'so close. again'];
+
+  let state, crown, pipes, score, deadAt, groundX, againI = 0, best = 0;
+  const clouds = [{ x: 60, y: 90, s: 1 }, { x: 260, y: 170, s: 0.8 }, { x: 330, y: 60, s: 0.6 }];
+
+  function reset() {
+    state = 'ready';
+    crown = { x: 110, y: H / 2 - 40, vy: 0 };
+    pipes = [];
+    score = 0;
+    groundX = 0;
+  }
+
+  function addPipe(x) {
+    const min = 110, max = H - GROUND - 110;
+    pipes.push({ x, gapY: min + Math.random() * (max - min), passed: false });
+  }
+
+  function flap() {
+    if (state === 'won') return;
+    if (state === 'dead') {
+      if (performance.now() - deadAt < 450) return;
+      reset();
+    }
+    if (state === 'ready') {
+      state = 'play';
+      addPipe(W + 40);
+    }
+    crown.vy = FLAP;
+  }
+
+  function die() {
+    state = 'dead';
+    deadAt = performance.now();
+    againI++;
+  }
+
+  function hitsPipe(p) {
+    const cx = crown.x, cy = crown.y;
+    const inX = cx + R > p.x && cx - R < p.x + PIPE_W;
+    if (!inX) return false;
+    return cy - R < p.gapY - GAP / 2 || cy + R > p.gapY + GAP / 2;
+  }
+
+  function update(dt) {
+    clouds.forEach(c => { c.x -= 12 * dt * c.s; if (c.x < -80) c.x = W + 60; });
+    if (state === 'ready') {
+      crown.y = H / 2 - 40 + Math.sin(performance.now() / 300) * 8;
+      return;
+    }
+    if (state !== 'play') return;
+    groundX = (groundX - SPEED * dt) % 24;
+    crown.vy += GRAVITY * dt;
+    crown.y += crown.vy * dt;
+    if (crown.y - R < 0) { crown.y = R; crown.vy = 0; }
+    if (crown.y + R > H - GROUND) { crown.y = H - GROUND - R; die(); return; }
+
+    for (const p of pipes) {
+      p.x -= SPEED * dt;
+      if (!p.passed && p.x + PIPE_W < crown.x - R) {
+        p.passed = true;
+        score++;
+        best = Math.max(best, score);
+        if (score >= GOAL) { win(); return; }
+      }
+      if (hitsPipe(p)) { die(); return; }
+    }
+    if (pipes.length && pipes[pipes.length - 1].x < W - SPACING) addPipe(W + 20);
+    pipes = pipes.filter(p => p.x > -PIPE_W - 10);
+  }
+
+  function win() {
+    state = 'won';
+    next.disabled = false;
+    next.focus();
+  }
+
+  function drawCrown() {
+    ctx.save();
+    ctx.translate(crown.x, crown.y);
+    const tilt = state === 'play' ? Math.max(-0.5, Math.min(0.9, crown.vy / 600)) : 0;
+    ctx.rotate(tilt);
+    ctx.scale(0.44, 0.44);
+    ctx.translate(-50, -52);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.fillStyle = '#f5b700';
+    ctx.fill(crownPath); ctx.stroke(crownPath);
+    ctx.beginPath(); ctx.roundRect(14, 70, 72, 14, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff5a36'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(50, 56, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPipe(p) {
+    ctx.fillStyle = '#f4efe6';
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.lineWidth = 4;
+    const top = p.gapY - GAP / 2, bottom = p.gapY + GAP / 2;
+    ctx.beginPath(); ctx.roundRect(p.x, -10, PIPE_W, top + 10, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(p.x - 6, top - 22, PIPE_W + 12, 22, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(p.x, bottom, PIPE_W, H - GROUND - bottom + 10, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(p.x - 6, bottom, PIPE_W + 12, 22, 6); ctx.fill(); ctx.stroke();
+  }
+
+  function centerText(text, y, size) {
+    ctx.font = `800 ${size}px Rubik, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.fillStyle = '#fff';
+    ctx.strokeText(text, W / 2, y);
+    ctx.fillText(text, W / 2, y);
+  }
+
+  function draw() {
+    ctx.fillStyle = '#bfe0ff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 3; ctx.strokeStyle = '#1b1b1b'; ctx.fillStyle = '#fff';
+    for (const c of clouds) {
+      ctx.beginPath(); ctx.roundRect(c.x, c.y, 70 * c.s + 20, 30 * c.s + 6, 16); ctx.fill(); ctx.stroke();
+    }
+    pipes.forEach(drawPipe);
+    // ground
+    ctx.fillStyle = '#e6dfd2';
+    ctx.fillRect(0, H - GROUND, W, GROUND);
+    ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, H - GROUND); ctx.lineTo(W, H - GROUND); ctx.stroke();
+    ctx.lineWidth = 3;
+    for (let x = groundX; x < W; x += 24) {
+      ctx.beginPath(); ctx.moveTo(x, H - GROUND + 14); ctx.lineTo(x + 12, H - GROUND + 26); ctx.stroke();
+    }
+    drawCrown();
+
+    if (state === 'play' || state === 'dead') centerText(score + '/' + GOAL, 50, 40);
+    if (state === 'ready') {
+      centerText('tap to flap', H / 2 + 50, 30);
+      if (best) centerText('best: ' + best, H / 2 + 92, 20);
+    }
+    if (state === 'dead') centerText(AGAIN[againI % AGAIN.length], H / 2, 34);
+    if (state === 'won') {
+      centerText('10/10', H / 2 - 24, 48);
+      centerText("delaun's crown is yours now", H / 2 + 24, 24);
+    }
+  }
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', e => { e.preventDefault(); flap(); });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      if (document.activeElement === next && !next.disabled) return;
+      e.preventDefault();
+      if (!e.repeat) flap();
+    }
+  });
+  reset();
+  (document.fonts ? document.fonts.load('800 30px Rubik').catch(() => {}) : Promise.resolve())
+    .finally(() => requestAnimationFrame(loop));
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

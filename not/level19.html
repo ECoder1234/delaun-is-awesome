@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 19</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<!-- psst. the password is crown -->
+<style>
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px 110px; text-align: center; }
+  ::selection { background: var(--gold); color: var(--ink); }
+  form { display: flex; gap: 8px; margin-top: 24px; }
+  input {
+    flex: 1; min-width: 0;
+    font: inherit; font-size: 1.15rem;
+    padding: 12px 14px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  input:focus { border-color: var(--blue); }
+  input.shake { animation: shake 0.35s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  form button {
+    font: inherit; font-weight: 700;
+    padding: 0 20px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: var(--ink); color: var(--paper); cursor: pointer;
+  }
+  .reply { min-height: 1.6em; margin-top: 14px; font-weight: 700; font-size: 1.15rem; }
+  .secret { color: var(--paper); margin: 34px 0; font-weight: 500; }
+  .hintbtn {
+    font: inherit; font-weight: 700;
+    padding: 8px 18px;
+    border: 3px solid var(--ink); border-radius: 10px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .hintbtn:disabled { border-color: var(--muted); color: var(--muted); cursor: default; }
+  .hints { list-style: none; padding: 0; margin: 14px 0 0; }
+  .hints li { margin: 6px 0; color: #4a453e; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 19</span></div>
+
+  <main>
+    <h1>password</h1>
+    <p class="sub">the password is somewhere on this page. find it</p>
+
+    <form id="form">
+      <input id="pw" placeholder="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Password">
+      <button type="submit">enter</button>
+    </form>
+    <div class="reply" id="reply"></div>
+
+    <p class="secret">the password is crown</p>
+
+    <button class="hintbtn" id="hintBtn" disabled>hints unlock in 20s</button>
+    <ul class="hints" id="hints"></ul>
+  </main>
+
+  <button class="next" id="next" disabled onclick="location.href='level20.html'">next level</button>
+
+<script>
+  const form = document.getElementById('form');
+  const pw = document.getElementById('pw');
+  const reply = document.getElementById('reply');
+  const hintBtn = document.getElementById('hintBtn');
+  const hintsEl = document.getElementById('hints');
+  const next = document.getElementById('next');
+
+  const BASE_TITLE = document.title;
+  const WRONG = ['nope', "that's not it", 'wrong. look around', 'the page is literally telling you', 'no. read everything'];
+  const HINTS = [
+    'look at the name of this tab up top. give it a sec',
+    'some text on this page is invisible. click empty space and press ctrl+a (or cmd+a)',
+    'it is something delaun wears on top',
+    'c _ _ _ n',
+  ];
+
+  let done = false, wrongI = 0, hintI = 0;
+
+  // 1) the tab title starts spilling the password after 10s
+  setTimeout(() => {
+    let flip = false;
+    setInterval(() => {
+      if (done) { document.title = BASE_TITLE; return; }
+      flip = !flip;
+      document.title = flip ? 'the password is crown' : BASE_TITLE;
+    }, 1500);
+  }, 10000);
+
+  // 2) hints unlock after 20s
+  let wait = 20;
+  const countdown = setInterval(() => {
+    wait--;
+    if (wait > 0) { hintBtn.textContent = 'hints unlock in ' + wait + 's'; return; }
+    clearInterval(countdown);
+    hintBtn.disabled = false;
+    hintBtn.textContent = 'hint';
+  }, 1000);
+
+  hintBtn.addEventListener('click', () => {
+    if (hintI >= HINTS.length) return;
+    const li = document.createElement('li');
+    li.textContent = HINTS[hintI++];
+    hintsEl.appendChild(li);
+    if (hintI >= HINTS.length) { hintBtn.disabled = true; hintBtn.textContent = 'no more hints'; }
+    else hintBtn.textContent = 'another hint';
+  });
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (done) return;
+    const guess = pw.value.trim().toLowerCase();
+    if (!guess) return;
+    if (guess === 'crown') {
+      done = true;
+      document.title = BASE_TITLE;
+      reply.textContent = 'access granted';
+      pw.disabled = true;
+      next.disabled = false;
+      next.focus();
+      return;
+    }
+    reply.textContent = guess.includes('123') ? 'password123? really?' : WRONG[wrongI++ % WRONG.length];
+    pw.classList.remove('shake'); void pw.offsetWidth; pw.classList.add('shake');
+    pw.select();
+  });
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

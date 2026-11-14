@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 17</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; }
+  .status { font-weight: 800; font-size: 1.4rem; margin: 14px 0 4px; }
+  .line { min-height: 1.5em; font-weight: 500; margin-bottom: 14px; color: #4a453e; }
+  .pads {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: min(100%, 400px);
+    margin: 0 auto;
+  }
+  .pad {
+    aspect-ratio: 1;
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .pad[data-i="0"] { background: #fbe7a6; }
+  .pad[data-i="1"] { background: #c4e0ff; }
+  .pad[data-i="2"] { background: #ffc6b8; }
+  .pad[data-i="3"] { background: #bfe6c9; }
+  .pad[data-i="0"].lit { background: #f5b700; }
+  .pad[data-i="1"].lit { background: #4da3ff; }
+  .pad[data-i="2"].lit { background: #ff5a36; }
+  .pad[data-i="3"].lit { background: #3fae5a; }
+  .pad.lit { transform: scale(0.95); }
+  .pads.locked .pad { cursor: default; }
+  .start {
+    font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 10px 26px; margin: 18px 0 10px;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .wrap .next { position: static; transform: none; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 17</span></div>
+
+  <div class="wrap">
+    <h1>repeat after me</h1>
+    <p class="sub">watch the pads. copy them. get to 7 in a row</p>
+    <div class="status" id="status">length 0/7</div>
+    <div class="line" id="line">press start</div>
+    <div class="pads locked" id="pads">
+      <button class="pad" data-i="0" aria-label="Gold pad"></button>
+      <button class="pad" data-i="1" aria-label="Blue pad"></button>
+      <button class="pad" data-i="2" aria-label="Red pad"></button>
+      <button class="pad" data-i="3" aria-label="Green pad"></button>
+    </div>
+    <button class="start" id="start">start</button>
+    <br>
+    <button class="next" id="next" disabled onclick="location.href='level18.html'">next level</button>
+  </div>
+
+<script>
+  const GOAL = 7;
+  const padsEl = document.getElementById('pads');
+  const pads = [...document.querySelectorAll('.pad')];
+  const statusEl = document.getElementById('status');
+  const line = document.getElementById('line');
+  const startBtn = document.getElementById('start');
+  const next = document.getElementById('next');
+
+  const FREQ = [392, 523, 330, 659];
+  const FAIL = [
+    'nope. back to 1',
+    'goldfish memory fr',
+    'that was very delaun of you. back to 1',
+    'wrong pad. again',
+    'brain lag. starting over',
+  ];
+
+  let seq = [], idx = 0, accepting = false, won = false, failI = 0;
+  let audio = null;
+
+  function beep(i, ms = 220) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'triangle';
+      o.frequency.value = FREQ[i];
+      g.gain.setValueAtTime(0.12, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + ms / 1000);
+      o.connect(g); g.connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + ms / 1000);
+    } catch (e) { /* no sound, no problem */ }
+  }
+
+  function flash(i, ms = 300) {
+    pads[i].classList.add('lit');
+    beep(i, ms);
+    setTimeout(() => pads[i].classList.remove('lit'), ms);
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function nextRound() {
+    accepting = false;
+    padsEl.classList.add('locked');
+    seq.push(Math.floor(Math.random() * 4));
+    statusEl.textContent = 'length ' + (seq.length - 1) + '/' + GOAL;
+    line.textContent = 'watch';
+    await sleep(600);
+    const speed = Math.max(300, 520 - seq.length * 25);
+    for (const i of seq) {
+      flash(i, speed - 80);
+      await sleep(speed);
+    }
+    idx = 0;
+    accepting = true;
+    padsEl.classList.remove('locked');
+    line.textContent = 'your turn';
+  }
+
+  function press(i) {
+    if (!accepting || won) return;
+    flash(i, 180);
+    if (i !== seq[idx]) {
+      accepting = false;
+      padsEl.classList.add('locked');
+      line.textContent = FAIL[failI++ % FAIL.length];
+      seq = [];
+      setTimeout(nextRound, 1300);
+      return;
+    }
+    idx++;
+    if (idx === seq.length) {
+      accepting = false;
+      padsEl.classList.add('locked');
+      statusEl.textContent = 'length ' + seq.length + '/' + GOAL;
+      if (seq.length >= GOAL) {
+        won = true;
+        line.textContent = '7 in a row. delaun could never';
+        next.disabled = false;
+        next.focus();
+        return;
+      }
+      line.textContent = 'nice';
+      setTimeout(nextRound, 700);
+    }
+  }
+
+  pads.forEach((p, i) => p.addEventListener('pointerdown', e => { e.preventDefault(); press(i); }));
+  pads.forEach((p, i) => p.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(i); } }));
+
+  startBtn.addEventListener('click', () => {
+    startBtn.style.display = 'none';
+    seq = [];
+    nextRound();
+  });
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

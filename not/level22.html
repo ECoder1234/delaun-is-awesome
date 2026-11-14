@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 520px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; font-size: clamp(1.8rem, 6vw, 2.6rem); }
+  .legend { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 8px 0; color: #4a453e; font-size: 0.95rem; }
+  .legend i {
+    display: inline-block; font-style: normal; font-weight: 700;
+    border: 2px solid var(--ink); border-radius: 999px; padding: 0 8px; margin-right: 4px;
+  }
+  .legend .good i { background: #fff; }
+  .legend .bad i { background: var(--muted); color: #fff; }
+  .score { font-weight: 800; font-size: 1.8rem; margin: 4px 0 10px; }
+  .score span { color: var(--gold); -webkit-text-stroke: 2px var(--ink); }
+
+  .board { position: relative; width: min(100%, 440px, max(260px, calc((100vh - 250px) * 0.88))); margin: 0 auto; border: 4px solid var(--ink); border-radius: 18px; overflow: hidden; background: #fbf8f2; }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: grab; }
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(244, 239, 230, 0.85);
+    font-weight: 800; font-size: clamp(1.3rem, 5vw, 1.8rem);
+    cursor: pointer;
+  }
+  .overlay small { font-weight: 400; font-size: 1rem; margin-top: 6px; color: #4a453e; }
+  .overlay.hidden { display: none; }
+  .hint { margin: 12px 0; color: #4a453e; }
+
+  .wrap .next { position: static; transform: none; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 22</span></div>
+
+  <div class="wrap">
+    <h1>catch the hate</h1>
+    <p class="sub">collect 20 hater words for delaun. dodge the compliments.</p>
+    <div class="legend">
+      <span class="good"><i>mid</i>+1</span>
+      <span class="bad"><i>goat</i>-2</span>
+    </div>
+    <div class="score"><span id="score">0</span>/20</div>
+
+    <div class="board">
+      <canvas id="game"></canvas>
+      <div class="overlay" id="overlay">tap to start<small>drag or use arrow keys to move</small></div>
+    </div>
+    <p class="hint">drag, or hold <b>←</b> <b>→</b></p>
+
+    <button class="next" id="next" disabled onclick="location.href='level23.html'">next level</button>
+  </div>
+
+<script>
+  const GOAL = 20;
+  const W = 440, H = 500;
+  const GOOD = ['mid', 'L', 'meh', 'ratio', 'cringe', 'fell off', 'overrated'];
+  const BAD = ['goat', 'legend', 'W', 'awesome', 'iconic'];
+  const BASKET_W = 104, CATCH_Y = H - 92;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const overlay = document.getElementById('overlay');
+  const scoreEl = document.getElementById('score');
+  const next = document.getElementById('next');
+  const playerImg = new Image();
+  playerImg.src = '../assets/player.png';
+
+  let state = 'ready';          // ready | playing | won
+  let score = 0;
+  let words = [], pops = [];
+  let basketX = W / 2, targetX = W / 2, keyDir = 0;
+  let spawnIn = 0, last = 0;
+
+  const FONT = '700 18px Rubik, sans-serif';
+
+  function spawnWord() {
+    const good = Math.random() < 0.62;
+    const list = good ? GOOD : BAD;
+    const text = list[Math.floor(Math.random() * list.length)];
+    ctx.font = FONT;
+    const w = ctx.measureText(text).width + 26;
+    const x = w / 2 + 8 + Math.random() * (W - w - 16);
+    const speed = 130 + Math.random() * 80 + score * 3;
+    words.push({ text, good, x, y: -40, w, vy: speed });
+  }
+
+  function update(dt) {
+    if (state !== 'playing') return;
+    // basket movement
+    if (keyDir) targetX += keyDir * 460 * dt;
+    targetX = Math.max(BASKET_W / 2, Math.min(W - BASKET_W / 2, targetX));
+    basketX += (targetX - basketX) * Math.min(1, dt * 18);
+
+    spawnIn -= dt;
+    if (spawnIn <= 0) { spawnWord(); spawnIn = 0.6 + Math.random() * 0.35; }
+
+    for (const wd of words) {
+      const prevBottom = wd.y + 17;
+      wd.y += wd.vy * dt;
+      const bottom = wd.y + 17;
+      if (!wd.done && prevBottom < CATCH_Y && bottom >= CATCH_Y && Math.abs(wd.x - basketX) < BASKET_W / 2 + 6) {
+        wd.done = true;
+        if (wd.good) { score++; pops.push({ x: wd.x, y: CATCH_Y - 20, text: '+1', bad: false, t: 0 }); }
+        else { score = Math.max(0, score - 2); pops.push({ x: wd.x, y: CATCH_Y - 20, text: '-2', bad: true, t: 0 }); }
+        scoreEl.textContent = score;
+        if (score >= GOAL) return win();
+      }
+    }
+    words = words.filter(wd => !wd.done && wd.y < H + 40);
+    pops.forEach(p => p.t += dt);
+    pops = pops.filter(p => p.t < 0.7);
+  }
+
+  function drawWord(wd) {
+    ctx.font = FONT;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.fillStyle = wd.good ? '#fff' : '#9a9286';
+    ctx.beginPath(); ctx.roundRect(wd.x - wd.w / 2, wd.y - 17, wd.w, 34, 17); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = wd.good ? '#1b1b1b' : '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(wd.text, wd.x, wd.y + 1);
+  }
+
+  function drawBasket() {
+    // the player stands behind the basket
+    if (playerImg.naturalWidth) {
+      const h = 96, w = playerImg.naturalWidth * h / playerImg.naturalHeight;
+      ctx.drawImage(playerImg, basketX - w / 2, H - 6 - h, w, h);
+    }
+    const top = CATCH_Y, bw = BASKET_W;
+    ctx.lineWidth = 3; ctx.strokeStyle = '#1b1b1b'; ctx.fillStyle = '#f5b700';
+    ctx.beginPath();
+    ctx.moveTo(basketX - bw / 2, top);
+    ctx.lineTo(basketX + bw / 2, top);
+    ctx.lineTo(basketX + bw / 2 - 12, top + 40);
+    ctx.lineTo(basketX - bw / 2 + 12, top + 40);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    for (let i = 1; i < 4; i++) { const x = basketX - bw / 2 + i * bw / 4; ctx.moveTo(x, top + 4); ctx.lineTo(x + (i - 2) * -3, top + 36); }
+    ctx.moveTo(basketX - bw / 2 + 6, top + 20); ctx.lineTo(basketX + bw / 2 - 6, top + 20);
+    ctx.stroke();
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(basketX - bw / 2 - 3, top); ctx.lineTo(basketX + bw / 2 + 3, top); ctx.stroke();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#fbf8f2';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#e6dfd2';
+    ctx.fillRect(0, H - 8, W, 8);
+    words.forEach(drawWord);
+    drawBasket();
+    for (const p of pops) {
+      ctx.globalAlpha = 1 - p.t / 0.7;
+      ctx.font = '800 24px Rubik, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = p.bad ? '#ff5a36' : '#1b1b1b';
+      ctx.fillText(p.text, p.x, p.y - p.t * 50);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function loop(t) {
+    const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
+    last = t;
+    update(dt);
+    draw();
+    if (state !== 'won') requestAnimationFrame(loop);
+  }
+
+  function start() {
+    if (state !== 'ready') return;
+    state = 'playing';
+    overlay.classList.add('hidden');
+    spawnIn = 0.2;
+  }
+
+  function win() {
+    state = 'won';
+    words = [];
+    draw();
+    overlay.innerHTML = '20. delaun is NOT happy<small>next level unlocked</small>';
+    overlay.classList.remove('hidden');
+    next.disabled = false;
+    next.focus();
+  }
+
+  // ---------- input ----------
+  function pointerX(e) {
+    const r = canvas.getBoundingClientRect();
+    return (e.clientX - r.left) * W / r.width;
+  }
+  overlay.addEventListener('pointerdown', e => { e.preventDefault(); start(); });
+  canvas.addEventListener('pointerdown', e => { e.preventDefault(); canvas.setPointerCapture(e.pointerId); targetX = pointerX(e); start(); });
+  canvas.addEventListener('pointermove', e => { if (state === 'playing' && (e.buttons || e.pointerType === 'mouse')) targetX = pointerX(e); });
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { e.preventDefault(); keyDir = -1; start(); }
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); keyDir = 1; start(); }
+  });
+  window.addEventListener('keyup', e => {
+    if ((e.code === 'ArrowLeft' || e.code === 'KeyA') && keyDir === -1) keyDir = 0;
+    if ((e.code === 'ArrowRight' || e.code === 'KeyD') && keyDir === 1) keyDir = 0;
+  });
+  window.addEventListener('blur', () => { keyDir = 0; });
+
+  requestAnimationFrame(loop);
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>

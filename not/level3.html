@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  main {
+    min-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 16px 60px;
+  }
+  .crown { width: 84px; height: 84px; transform: rotate(-8deg); margin-bottom: 4px; }
+  h1 { font-size: clamp(2.2rem, 8vw, 4.6rem); }
+  .mark {
+    background: linear-gradient(transparent 58%, var(--gold) 58%, var(--gold) 92%, transparent 92%);
+    padding: 0 6px;
+  }
+  .sub { font-size: clamp(1.1rem, 3vw, 1.4rem); margin-top: 10px; max-width: 520px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 3</span></div>
+
+  <main>
+    <svg class="crown" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M14 72 L8 30 L32 50 L50 18 L68 50 L92 30 L86 72 Z" fill="#f5b700" stroke="#1b1b1b" stroke-width="6" stroke-linejoin="round"/>
+      <rect x="14" y="70" width="72" height="14" rx="3" fill="#f5b700" stroke="#1b1b1b" stroke-width="6"/>
+      <circle cx="50" cy="56" r="6" fill="#ff5a36" stroke="#1b1b1b" stroke-width="4"/>
+    </svg>
+    <h1>delaun is <span class="mark">not</span> awesome</h1>
+    <p class="sub">sorry. someone had to say it</p>
+  </main>
+
+  <button class="next" onclick="location.href='level4.html'">next level</button>
+<script src="../admin.js"></script>
+</body>
+</html>

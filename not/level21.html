@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>delaun is not awesome - level 21</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>:root { --gold: #b48cff; }</style>
+<style>
+  .wrap { max-width: 520px; margin: 0 auto; padding: 0 16px 32px; text-align: center; }
+  h1 { margin-top: 4px; }
+  .count { font-weight: 800; font-size: 2rem; margin: 12px 0; }
+  .count span { color: var(--gold); -webkit-text-stroke: 2px var(--ink); }
+
+  .board { position: relative; width: min(100%, 440px); margin: 0 auto; border: 4px solid var(--ink); border-radius: 18px; overflow: hidden; background: #fbf8f2; }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; }
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(244, 239, 230, 0.85);
+    font-weight: 800; font-size: clamp(1.3rem, 5vw, 1.8rem);
+    cursor: pointer;
+  }
+  .overlay small { font-weight: 400; font-size: 1rem; margin-top: 6px; color: #4a453e; }
+  .overlay.hidden { display: none; }
+
+  .controls-hint { margin: 12px 0; color: #4a453e; }
+  .controls-hint kbd {
+    font: inherit; font-weight: 700; font-size: 0.85rem;
+    border: 2px solid var(--ink); border-bottom-width: 4px; border-radius: 6px;
+    padding: 1px 7px; background: #fff;
+  }
+  .dpad { display: none; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(2, 60px); gap: 6px; justify-content: center; margin: 14px auto; }
+  .dpad button {
+    font: inherit; font-weight: 800; font-size: 1.3rem;
+    border: 3px solid var(--ink); border-radius: 12px;
+    background: #fff; color: var(--ink);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .dpad .up { grid-column: 2; }
+  .dpad .left { grid-column: 1; grid-row: 2; }
+  .dpad .down { grid-column: 2; grid-row: 2; }
+  .dpad .right { grid-column: 3; grid-row: 2; }
+  @media (pointer: coarse) { .dpad { display: grid; } .controls-hint { display: none; } }
+
+  .wrap .next { position: static; transform: none; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="topbar"><a href="index.html">delaun is not awesome</a><span class="lvl">level 21</span></div>
+
+  <div class="wrap">
+    <h1>snake but crowns</h1>
+    <p class="sub">eat 10 crowns. don't eat yourself. that's it.</p>
+    <div class="count"><span id="count">0</span>/10</div>
+
+    <div class="board">
+      <canvas id="game"></canvas>
+      <div class="overlay" id="overlay">tap or press an arrow<small>to start</small></div>
+    </div>
+
+    <p class="controls-hint">steer with <kbd>arrows</kbd> or <kbd>WASD</kbd></p>
+    <div class="dpad">
+      <button class="up" data-dir="up" aria-label="Up">↑</button>
+      <button class="left" data-dir="left" aria-label="Left">←</button>
+      <button class="down" data-dir="down" aria-label="Down">↓</button>
+      <button class="right" data-dir="right" aria-label="Right">→</button>
+    </div>
+
+    <button class="next" id="next" disabled onclick="location.href='level22.html'">next level</button>
+  </div>
+
+<script>
+  const GOAL = 10;
+  const N = 15, CELL = 30, S = N * CELL;
+  const SPEED = 140;
+  const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = S * dpr; canvas.height = S * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const overlay = document.getElementById('overlay');
+  const countEl = document.getElementById('count');
+  const next = document.getElementById('next');
+
+  let snake, dir, queue, food, eaten, state, timer;   // state: ready | playing | dead | won
+
+  function showOverlay(html) { overlay.innerHTML = html; overlay.classList.remove('hidden'); }
+
+  function reset() {
+    snake = [{ x: 7, y: 7 }, { x: 6, y: 7 }, { x: 5, y: 7 }];
+    dir = DIRS.right;
+    queue = [];
+    eaten = 0;
+    countEl.textContent = 0;
+    placeFood();
+    state = 'ready';
+    draw();
+  }
+
+  function placeFood() {
+    const free = [];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+      if (!snake.some(s => s.x === x && s.y === y)) free.push({ x, y });
+    food = free[Math.floor(Math.random() * free.length)];
+  }
+
+  function start() {
+    state = 'playing';
+    overlay.classList.add('hidden');
+    clearInterval(timer);
+    timer = setInterval(step, SPEED);
+  }
+
+  function steer(name) {
+    const d = DIRS[name];
+    if (state === 'won') return;
+    if (state === 'dead') { reset(); }
+    const last = queue.length ? queue[queue.length - 1] : dir;
+    if (d.x === -last.x && d.y === -last.y) { if (state === 'ready') start(); return; }  // no reversing
+    if (d === last) { if (state === 'ready') start(); return; }
+    if (queue.length < 2) queue.push(d);
+    if (state === 'ready') start();
+  }
+
+  function step() {
+    if (state !== 'playing') return;
+    if (queue.length) dir = queue.shift();
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    const eats = head.x === food.x && head.y === food.y;
+    const body = eats ? snake : snake.slice(0, -1);
+    if (head.x < 0 || head.y < 0 || head.x >= N || head.y >= N || body.some(s => s.x === head.x && s.y === head.y)) {
+      return die();
+    }
+    snake.unshift(head);
+    if (eats) {
+      eaten++;
+      countEl.textContent = eaten;
+      if (eaten >= GOAL) { draw(); return win(); }
+      placeFood();
+    } else {
+      snake.pop();
+    }
+    draw();
+  }
+
+  function die() {
+    state = 'dead';
+    clearInterval(timer);
+    draw();
+    showOverlay(`ouch. ${eaten}/10<small>tap or press an arrow to try again</small>`);
+  }
+
+  function win() {
+    state = 'won';
+    clearInterval(timer);
+    showOverlay('10 crowns. delaun has none left<small>next level unlocked</small>');
+    next.disabled = false;
+    next.focus();
+  }
+
+  // ---------- drawing ----------
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+  function drawCrown(cx, cy, size) {
+    const s = size / 100;
+    ctx.save();
+    ctx.translate(cx - 50 * s, cy - 52 * s);
+    ctx.scale(s, s);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.fillStyle = '#f5b700';
+    ctx.beginPath();
+    ctx.moveTo(14, 72); ctx.lineTo(8, 30); ctx.lineTo(32, 50); ctx.lineTo(50, 18); ctx.lineTo(68, 50); ctx.lineTo(92, 30); ctx.lineTo(86, 72);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.rect(14, 70, 72, 14); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff5a36';
+    ctx.beginPath(); ctx.arc(50, 56, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#fbf8f2';
+    ctx.fillRect(0, 0, S, S);
+    ctx.strokeStyle = '#ece5d8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < N; i++) {
+      ctx.moveTo(i * CELL + 0.5, 0); ctx.lineTo(i * CELL + 0.5, S);
+      ctx.moveTo(0, i * CELL + 0.5); ctx.lineTo(S, i * CELL + 0.5);
+    }
+    ctx.stroke();
+
+    drawCrown(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL * 0.95);
+
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1b1b1b';
+    for (let i = snake.length - 1; i >= 0; i--) {
+      const s = snake[i];
+      ctx.fillStyle = i === 0 ? '#e0a400' : (i % 2 ? '#f5b700' : '#ffc928');
+      roundRect(s.x * CELL + 2, s.y * CELL + 2, CELL - 4, CELL - 4, i === 0 ? 10 : 7);
+      ctx.fill(); ctx.stroke();
+    }
+    // eyes
+    const h = snake[0];
+    const cx = h.x * CELL + CELL / 2, cy = h.y * CELL + CELL / 2;
+    const px = -dir.y, py = dir.x;   // perpendicular
+    for (const side of [-1, 1]) {
+      const ex = cx + dir.x * 4 + px * 6 * side, ey = cy + dir.y * 4 + py * 6 * side;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(ex, ey, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#1b1b1b';
+      ctx.beginPath(); ctx.arc(ex + dir.x * 1.5, ey + dir.y * 1.5, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.lineWidth = 3;
+  }
+
+  // ---------- input ----------
+  const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  window.addEventListener('keydown', e => {
+    if (KEYS[e.code]) { e.preventDefault(); steer(KEYS[e.code]); }
+  });
+  document.querySelectorAll('.dpad button').forEach(b =>
+    b.addEventListener('pointerdown', e => { e.preventDefault(); steer(b.dataset.dir); }));
+
+  let swipeStart = null;
+  const board = document.querySelector('.board');
+  board.addEventListener('pointerdown', e => { swipeStart = { x: e.clientX, y: e.clientY }; });
+  board.addEventListener('pointerup', e => {
+    if (!swipeStart) return;
+    const dx = e.clientX - swipeStart.x, dy = e.clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) {
+      // plain tap: start / restart going the current way
+      if (state === 'ready' || state === 'dead') { if (state === 'dead') reset(); start(); }
+      return;
+    }
+    steer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+
+  reset();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(draw);
+</script>
+<script src="../admin.js"></script>
+</body>
+</html>
