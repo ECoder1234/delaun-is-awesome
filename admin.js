@@ -2,6 +2,7 @@
 // that can beat or skip levels and edit the text on the page.
 (() => {
   const LAST = 25;
+  const LOCK_FROM = 0; // first level kept in lock/ (0 = none)
   const SECRET = 'awesome';
   const KEY_ON = 'admin-mode';
   const KEY_TEXT = 'admin-text:' + location.pathname;
@@ -15,7 +16,15 @@
   const m = location.pathname.match(/level(\d+)\.html$/);
   const LEVEL = m ? +m[1] : 1;
   const IN_NOT = /\/not\/[^/]*$/.test(location.pathname);
-  const pageFor = n => (n <= 1 || n > LAST ? 'index.html' : `level${n}.html`);
+  const IN_LOCK = /\/lock\/[^/]*$/.test(location.pathname);
+  const UP = IN_NOT || IN_LOCK ? '../' : '';
+  const pageFor = (n, not = IN_NOT) => {
+    if (n < 1 || n > LAST) n = 1;
+    const file = n === 1 ? 'index.html' : `level${n}.html`;
+    if (not) return UP + 'not/' + file;
+    if (LOCK_FROM && n >= LOCK_FROM) return UP + 'lock/' + file;
+    return UP + file;
+  };
 
   // ---- saved text edits (only elements you actually typed into) ----------
   const SKIP = 'script,style,button,input,textarea,select,canvas,svg,option';
@@ -119,7 +128,7 @@
       const act = b.dataset.act;
       if (act === 'beat') beat();
       else if (act === 'skip') { saveIfEditing(); location.href = pageFor(LEVEL + 1); }
-      else if (act === 'not') { saveIfEditing(); location.href = (IN_NOT ? '../' : 'not/') + pageFor(LEVEL); }
+      else if (act === 'not') { saveIfEditing(); location.href = pageFor(LEVEL, !IN_NOT); }
       else if (act === 'edit') setEditing(!editing);
       else if (act === 'reset') { setEditing(false); store.del('localStorage', KEY_TEXT); location.reload(); }
       else if (act === 'min') panel.classList.toggle('min');
